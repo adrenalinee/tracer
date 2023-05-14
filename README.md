@@ -2,7 +2,7 @@
 spring 기반 application 의 표준 동작 내역을 로깅 할 수 있도록 도와주는 프레임워크입니다.
 표준출력을 위한 단순 텍스트 로깅과 ES 로 보내기 위한 json 포맷의 로깅을 할 수 있습니다. 
 
-> spring 6 이상, spring-boot 3 이상 버전에서는 tracer 13.x 버전을 사용해야 합니다.
+> spring 6 이상, spring-boot 3 이상 버전에서 정상동작합니다.
 
 ## motivation
 application 실행중에 어떤 중요한 이벤트가 발생하거나 특정 액션이 수행되었는지를 확인해야 할 필요가 있습니다.
