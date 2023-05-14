@@ -78,8 +78,8 @@ subprojects {
                     username = System.getProperty("username")
                     password = System.getProperty("password")
                 }
-                val releasesRepoUrl = uri("http://kicc-nexus-repo.kep.k9d.in/repository/maven-releases")
-                val snapshotsRepoUrl = uri("http://kicc-nexus-repo.kep.k9d.in/repository/maven-snapshots")
+                val releasesRepoUrl = uri("")
+                val snapshotsRepoUrl = uri("")
                 url = uri(if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
                 isAllowInsecureProtocol = true
             }
