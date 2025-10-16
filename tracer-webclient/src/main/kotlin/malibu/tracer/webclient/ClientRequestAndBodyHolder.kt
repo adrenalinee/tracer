@@ -2,6 +2,8 @@ package malibu.tracer.webclient
 
 import malibu.tracer.TraceSpanId
 import malibu.tracer.TracerContext
+import malibu.tracer.io.LimitedByteArrayOutputStream
+import malibu.tracer.io.toLimitedString
 import org.reactivestreams.Publisher
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.http.client.reactive.ClientHttpRequest
@@ -9,7 +11,6 @@ import org.springframework.http.client.reactive.ClientHttpRequestDecorator
 import org.springframework.web.reactive.function.client.ClientRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import java.io.ByteArrayOutputStream
 import java.nio.channels.Channels
 
 class ClientRequestAndBodyHolder(
@@ -19,7 +20,8 @@ class ClientRequestAndBodyHolder(
     /**
      * body cache 할지 여부
      */
-    bodyHold: Boolean
+    bodyHold: Boolean,
+    private val maxPayloadLength: Int
 ) {
 
     private lateinit var tracerWebClientRequest: TracerWebClientRequest
@@ -39,7 +41,7 @@ class ClientRequestAndBodyHolder(
 
         if (bodyHold) {
             tracerRequestBuilder.body { outputMessage, context ->
-                tracerWebClientRequest = TracerWebClientRequest(outputMessage)
+                tracerWebClientRequest = TracerWebClientRequest(outputMessage, maxPayloadLength)
                 originRequest.body().insert(tracerWebClientRequest, context)
             }
         }
@@ -63,10 +65,11 @@ class ClientRequestAndBodyHolder(
  *
  */
 class TracerWebClientRequest(
-    delegate: ClientHttpRequest
+    delegate: ClientHttpRequest,
+    private val maxPayloadLength: Int
 ): ClientHttpRequestDecorator(delegate) {
 
-    private val requestBodyBaos = ByteArrayOutputStream()
+    private val requestBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
     private val requestBodyFn: (Publisher<out DataBuffer>) -> Publisher<out DataBuffer> = { body ->
         Flux.from(body)
@@ -92,7 +95,8 @@ class TracerWebClientRequest(
         return if (requestBodyBaos.size() <= 0) {
             null
         } else {
-            String(requestBodyBaos.toByteArray())
+            requestBodyBaos.toByteArray()
+                .toLimitedString(maxPayloadLength, truncated = requestBodyBaos.isTruncated())
         }
     }
 }

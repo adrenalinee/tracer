@@ -48,10 +48,19 @@ class TracerExchangeFilter(
                 }
 
             lateinit var responseAndBodyHolder: ClientResponseAndBodyHolder
-            val requestAndBodyHolder = ClientRequestAndBodyHolder(request, traceSpanId, tracerWebClientContext.traceRequestBody)
+            val requestAndBodyHolder = ClientRequestAndBodyHolder(
+                request,
+                traceSpanId,
+                tracerWebClientContext.traceRequestBody,
+                tracerWebClientContext.maxPayloadLength
+            )
             next.exchange(requestAndBodyHolder.clientRequest)
                 .map { response ->
-                    responseAndBodyHolder = ClientResponseAndBodyHolder(response, tracerWebClientContext.traceResponseBody)
+                    responseAndBodyHolder = ClientResponseAndBodyHolder(
+                        response,
+                        tracerWebClientContext.traceResponseBody,
+                        tracerWebClientContext.maxPayloadLength
+                    )
                     responseAndBodyHolder.onResponseBodyReadComplate = {
                         if (tracerLogger.isInforEnabled()) {
                             val httpLog = createHttpLog(startedTime, requestAndBodyHolder, responseAndBodyHolder)

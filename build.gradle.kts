@@ -4,9 +4,9 @@ plugins {
     id("java-library") //apply(false)
     id("maven-publish") //apply(false)
 
-    id("io.spring.dependency-management") version("1.1.0") //apply(false)
+    id("io.spring.dependency-management") version("1.1.4") //apply(false)
 
-    kotlin("jvm") version("1.7.22") apply(false)
+    kotlin("jvm") version("1.9.24") apply(false)
 }
 
 //allprojects {
@@ -45,11 +45,11 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.0.5")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.2.5")
         }
 
         imports {
-            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2022.0.2")
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2023.0.1")
         }
     }
 

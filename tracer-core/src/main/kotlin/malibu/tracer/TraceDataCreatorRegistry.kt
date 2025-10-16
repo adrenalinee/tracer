@@ -1,6 +1,7 @@
 package malibu.tracer
 
 import mu.KotlinLogging
+import java.util.concurrent.ConcurrentHashMap
 
 class TraceDataCreatorRegistry {
 
@@ -9,9 +10,11 @@ class TraceDataCreatorRegistry {
     /**
      * type, protocol 별로 data creator 저장
      */
-    private val traceDataCreators = mutableMapOf<String, MutableMap<String, TraceLogDataCreator<*>>>()
+    private val traceDataCreators: ConcurrentHashMap<String, ConcurrentHashMap<String, TraceLogDataCreator<*>>> =
+        ConcurrentHashMap()
 
     companion object {
+        private const val DEFAULT_PROTOCOL_KEY = "__default__"
         private val instance = TraceDataCreatorRegistry()
 
         /**
@@ -37,12 +40,12 @@ class TraceDataCreatorRegistry {
     /**
      *
      */
-    internal fun register(type: String, protocol: String, dataCreator: TraceLogDataCreator<*>) {
-        if (traceDataCreators.containsKey(type).not()) {
-            traceDataCreators[type] = mutableMapOf()
+    internal fun register(type: String, protocol: String?, dataCreator: TraceLogDataCreator<*>) {
+        val protocolKey = protocol ?: DEFAULT_PROTOCOL_KEY
+        val creatorsForType = traceDataCreators.computeIfAbsent(type) {
+            ConcurrentHashMap<String, TraceLogDataCreator<*>>()
         }
-
-        traceDataCreators[type]?.put(protocol, dataCreator)
+        creatorsForType[protocolKey] = dataCreator
     }
 
     /**
@@ -50,10 +53,14 @@ class TraceDataCreatorRegistry {
      */
     internal fun create(type: String, protocol: String?, logContext: Any): Any? {
         return try {
-            traceDataCreators[type]?.let {
-                //TODO protocol이 null 일때 처리 필요함.
-                it[protocol]?.create(logContext)
-            }
+            val creatorsForType = traceDataCreators[type] ?: return null
+            val protocolKey = protocol ?: DEFAULT_PROTOCOL_KEY
+            creatorsForType[protocolKey]?.create(logContext)
+                ?: if (protocol != null) {
+                    creatorsForType[DEFAULT_PROTOCOL_KEY]?.create(logContext)
+                } else {
+                    null
+                }
         } catch (ex: Exception) {
             logger.warn("TRACER: requestLog data creator에서 에러 발생", ex)
             null
@@ -72,7 +79,7 @@ class TraceLogTypeHolder(
     /**
      *
      */
-    fun register(protocol: String, dataCreator: TraceLogDataCreator<*>) {
+    fun register(protocol: String? = null, dataCreator: TraceLogDataCreator<*>) {
         traceDataCreatorRegistry.register(traceLogType, protocol, dataCreator)
     }
 
