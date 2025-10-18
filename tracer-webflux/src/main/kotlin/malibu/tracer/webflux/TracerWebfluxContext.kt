@@ -23,6 +23,12 @@ class TracerWebfluxContext {
 
 
     /**
+     * 최대 바디 로깅 길이 (byte 기준)
+     */
+    var maxPayloadLength: Int = 64 * 1024
+
+
+    /**
      * 에러가 발생했을 경우에 에러 trace 로그를 출력할지 결정.
      */
     var tracedError: Boolean = true

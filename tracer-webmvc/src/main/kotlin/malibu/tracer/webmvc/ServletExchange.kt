@@ -2,6 +2,7 @@ package malibu.tracer.webmvc
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import malibu.tracer.io.toLimitedString
 import mu.KotlinLogging
 import org.springframework.http.MediaType
 import org.springframework.web.util.ContentCachingRequestWrapper
@@ -9,7 +10,8 @@ import org.springframework.web.util.ContentCachingResponseWrapper
 
 class ServletExchange(
     val request: HttpServletRequest,
-    val response: HttpServletResponse
+    val response: HttpServletResponse,
+    private val maxPayloadLength: Int
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -31,7 +33,13 @@ class ServletExchange(
         }
 
         return if (request is ContentCachingRequestWrapper) {
-            String(request.contentAsByteArray)
+            val content = request.contentAsByteArray
+            if (content.isEmpty()) {
+                null
+            } else {
+                val truncated = maxPayloadLength > 0 && content.size >= maxPayloadLength
+                content.toLimitedString(maxPayloadLength, truncated = truncated)
+            }
         } else {
             null
         }
@@ -40,7 +48,9 @@ class ServletExchange(
     fun genResponseBody(): String? {
         return if (response is ContentCachingResponseWrapper) {
             if (response.contentSize > 0) {
-                String(response.contentAsByteArray)
+                val content = response.contentAsByteArray
+                val truncated = maxPayloadLength > 0 && content.size >= maxPayloadLength
+                content.toLimitedString(maxPayloadLength, truncated = truncated)
             } else {
                 null
             }

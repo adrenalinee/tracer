@@ -103,8 +103,7 @@ class TracerWebFilter(
                 tracerWebfluxContext.traceRequestBody &&
                 exchange.isReadRequestBody.not()
             ) {
-                //TODO controller가 body를 읽지 않았을 경우에 여기서 읽음. subscribe()가 완료되면 미리셋팅된 이벤트 발생으로 로그가 출력된다.
-                //TODO body가 너무 클 경우를 대비해서 일정 크기까지만 읽어야 한다.
+                // controller가 body를 읽지 않았을 경우에도 LimitedByteArrayOutputStream 으로 제한된 길이만큼만 보관된다.
             }
 
             //response 로그 출력

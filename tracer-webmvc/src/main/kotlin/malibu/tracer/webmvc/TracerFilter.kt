@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.util.ContentCachingRequestWrapper
 import org.springframework.web.util.ContentCachingResponseWrapper
+import kotlin.io.DEFAULT_BUFFER_SIZE
 
 /**
  * 참고:
@@ -164,19 +165,19 @@ class TracerFilter(
 
     private fun createServletExchange(request: HttpServletRequest, response: HttpServletResponse): ServletExchange {
         val arrangedRequest = if (tracerWebMvcContext.traceRequestBody) {
-            ContentCachingRequestWrapper(request)
+            ContentCachingRequestWrapper(request, tracerWebMvcContext.maxPayloadLength)
         } else {
             request
         }
 
         val arrangedResponse = if (tracerWebMvcContext.traceResponseBody) {
-            ContentCachingResponseWrapper(response)
+            ContentCachingResponseWrapper(response/*, tracerWebMvcContext.maxPayloadLength*/)
         } else {
             response
         }
 
 
-        return ServletExchange(arrangedRequest, arrangedResponse)
+        return ServletExchange(arrangedRequest, arrangedResponse, tracerWebMvcContext.maxPayloadLength)
     }
 
     private fun createTraceSpanId(servletExchange: ServletExchange): TraceSpanId {
@@ -204,9 +205,10 @@ fun createRequestLog(tracerWebMvcContext: TracerWebMvcContext, servletExchange: 
     if (tracerWebMvcContext.traceRequestBody &&
         servletExchange.request.inputStream.isFinished.not()) {
         //controller가 body를 읽지 않았을 경우에 여기서 읽음. 읽어야만 contentAsByteArray에 body가 들어 있다.
-        //TODO body가 너무 클 경우를 대비해서 일정 크기까지만 읽어야 한다.
         try {
-            while (servletExchange.request.inputStream.read() != -1) {}
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            val inputStream = servletExchange.request.inputStream
+            while (inputStream.read(buffer) != -1) {}
         } catch(ex: Exception) {
 //            logger2.warn("request body 읽는 도중 에러 발생.", ex)
             ex.printStackTrace()

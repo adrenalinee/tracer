@@ -1,7 +1,8 @@
 package malibu.tracer.webclient
 
+import malibu.tracer.io.LimitedByteArrayOutputStream
+import malibu.tracer.io.toLimitedString
 import org.springframework.web.reactive.function.client.ClientResponse
-import java.io.ByteArrayOutputStream
 import java.nio.channels.Channels
 
 class ClientResponseAndBodyHolder(
@@ -10,7 +11,8 @@ class ClientResponseAndBodyHolder(
     /**
      * body cache 할지 여부
      */
-    bodyHold: Boolean
+    bodyHold: Boolean,
+    private val maxPayloadLength: Int
 ) {
 
     /**
@@ -24,7 +26,7 @@ class ClientResponseAndBodyHolder(
     /**
      * 복사된 response body
      */
-    private val responseBodyBaos = ByteArrayOutputStream()
+    private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
     val clientResponse: ClientResponse
 
@@ -61,7 +63,8 @@ class ClientResponseAndBodyHolder(
         return if (responseBodyBaos.size() <= 0) {
             null
         } else {
-            String(responseBodyBaos.toByteArray())
+            responseBodyBaos.toByteArray()
+                .toLimitedString(maxPayloadLength, truncated = responseBodyBaos.isTruncated())
         }
     }
 }
