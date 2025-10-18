@@ -171,7 +171,7 @@ class TracerFilter(
         }
 
         val arrangedResponse = if (tracerWebMvcContext.traceResponseBody) {
-            ContentCachingResponseWrapper(response, tracerWebMvcContext.maxPayloadLength)
+            ContentCachingResponseWrapper(response/*, tracerWebMvcContext.maxPayloadLength*/)
         } else {
             response
         }
