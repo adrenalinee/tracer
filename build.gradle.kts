@@ -2,7 +2,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("java-library") //apply(false)
-    id("maven-publish") //apply(false)
+//    id("maven-publish") //apply(false)
+    `maven-publish`
 
     id("io.spring.dependency-management") version("1.1.0") //apply(false)
 
@@ -71,29 +72,34 @@ subprojects {
     tasks["publish"].dependsOn(tasks["build"])
     tasks["publishToMavenLocal"].dependsOn(tasks["build"])
 
-    publishing {
+    configure<PublishingExtension> {
         repositories {
             maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/adrenalinee/tracer")
                 credentials {
-                    username = System.getProperty("username")
-                    password = System.getProperty("password")
+                    username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+                    password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
                 }
-                val releasesRepoUrl = uri("")
-                val snapshotsRepoUrl = uri("")
-                url = uri(if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
-                isAllowInsecureProtocol = true
+//                val releasesRepoUrl = uri("")
+//                val snapshotsRepoUrl = uri("")
+//                url = uri(if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
+//                isAllowInsecureProtocol = true
             }
         }
 
         publications {
-            create<MavenPublication>("maven") {
-                groupId = group.toString()
-                artifactId = project.name
-                version = version
-
-
+            register<MavenPublication>("gpr") {
                 from(components["java"])
             }
+//            create<MavenPublication>("maven") {
+//                groupId = group.toString()
+//                artifactId = project.name
+//                version = version
+//
+//
+//                from(components["java"])
+//            }
         }
     }
 }
