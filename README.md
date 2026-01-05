@@ -56,13 +56,16 @@ spring-webflux 기반 샘플입니다.
 repositories {
     mavenCentral()
     maven {
-        setUrl("http://kicc-nexus-repo.kep.k9d.in/repository/maven-public")
-        isAllowInsecureProtocol = true
+        url = uri("https://maven.pkg.github.com/adrenalinee/tracer")
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+        }
     }
 }
 
 dependencies {
-    implementation("malibu.tracer:tracer-webflux:13.0")
+    implementation("malibu.tracer:tracer-webmvc:13.0")
 }
 ```
 
