@@ -29,7 +29,7 @@ open class TracerWebMvcConfiguration(
             tracerWebMvcConfigurers.forEach { tracerConfigurer ->
                 logger.info { "TRACER: found TracerWebMvcConfigurer: $tracerConfigurer" }
                 val tracerWebMvcContextApplyer = TracerWebMvcContextApplyer()
-                tracerConfigurer.configureTracerWebflux(tracerWebMvcContextApplyer)
+                tracerConfigurer.configureTracerWebMvc(tracerWebMvcContextApplyer)
 
                 tracerWebMvcContextApplyer.apply(tracerWebMvcContext)
             }

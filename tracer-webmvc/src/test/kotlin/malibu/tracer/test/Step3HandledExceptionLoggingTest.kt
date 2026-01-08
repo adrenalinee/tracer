@@ -30,7 +30,7 @@ import java.net.URI
 class Step3HandledExceptionLoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebflux(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
             context.traceRequestBody = true
             context.traceResponseBody = true
         }

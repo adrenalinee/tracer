@@ -29,7 +29,6 @@ subprojects {
     group = "malibu.tracer"
     version = "14.0-SNAPSHOT"
 
-//    java.sourceCompatibility = JavaVersion.VERSION_17
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
@@ -44,18 +43,20 @@ subprojects {
         implementation("org.jetbrains.kotlin:kotlin-reflect")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
-        testImplementation("org.junit.jupiter:junit-jupiter-engine")
-        testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
-        testImplementation("org.mockito:mockito-inline:5.2.0")
+//        testImplementation("org.junit.jupiter:junit-jupiter-engine")
+        testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+//        testImplementation("org.mockito:mockito-inline:5.2.0")
+        testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.6")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.9")
         }
 
         imports {
-            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.0")
         }
     }
 
