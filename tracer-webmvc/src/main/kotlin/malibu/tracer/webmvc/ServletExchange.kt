@@ -18,10 +18,18 @@ class ServletExchange(
     val startedTime = System.currentTimeMillis()
 
     fun genRequestBody(): String? {
-        if (request.contentType != MediaType.APPLICATION_JSON_VALUE &&
-            request.contentType.lowercase().startsWith("text").not()) {
+        if (request.contentType.isBlank()) {
             logger.debug {
-                "body 출력을 허용하지 않는 contentType 입니다. " +
+                "contentType 이 정의되지 않아서 request body 를 전달하지 않습니다. (어떤 데이터인지 알 수 없어서 읽지 않습니다.)" +
+                        "contentType: ${request.contentType}, contentLength: ${request.contentLength}"
+            }
+            return null
+        }
+        if (request.contentType != MediaType.APPLICATION_JSON_VALUE &&
+            request.contentType.lowercase().startsWith("text").not()
+        ) {
+            logger.debug {
+                "body 읽기를 허용하지 않는 contentType 입니다. (어떤 데이터인지 알 수 없어서 읽지 않습니다.) contentType: ${request.contentType}" +
                         "contentType: ${request.contentType}, contentLength: ${request.contentLength}"
             }
             return null

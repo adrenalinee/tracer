@@ -29,7 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 class Step2LoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebflux(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
             context.traceResponseBody = true
         }
     }
