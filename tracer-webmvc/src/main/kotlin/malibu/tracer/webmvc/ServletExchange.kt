@@ -18,7 +18,7 @@ class ServletExchange(
     val startedTime = System.currentTimeMillis()
 
     fun genRequestBody(): String? {
-        if (request.contentType.isBlank()) {
+        if (request.contentType.isNullOrEmpty()) {
             logger.debug {
                 "contentType 이 정의되지 않아서 request body 를 전달하지 않습니다. (어떤 데이터인지 알 수 없어서 읽지 않습니다.)" +
                         "contentType: ${request.contentType}, contentLength: ${request.contentLength}"
