@@ -3,6 +3,7 @@ package malibu.tracer
 class EachRequestContext(
     val url: String,
     val path: String,
+    val method: String? = null,
     val isInclude: Boolean,
     val traceSpanId: malibu.tracer.TraceSpanId?
 ) {

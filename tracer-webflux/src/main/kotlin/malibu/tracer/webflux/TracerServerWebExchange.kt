@@ -1,5 +1,7 @@
 package malibu.tracer.webflux
 
+import malibu.tracer.io.LimitedByteArrayOutputStream
+import malibu.tracer.io.toLimitedString
 import org.reactivestreams.Publisher
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -10,7 +12,6 @@ import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.ServerWebExchangeDecorator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import java.io.ByteArrayOutputStream
 import java.nio.channels.Channels
 
 /**
@@ -40,12 +41,14 @@ class TracerServerWebExchange(
     /**
      * 복사된 request body
      */
-    private val requestBodyBaos = ByteArrayOutputStream()
+    private val maxPayloadLength = tracerWebfluxContext.maxPayloadLength
+
+    private val requestBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
     /**
      * 복사된 response body
      */
-    private val responseBodyBaos = ByteArrayOutputStream()
+    private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
 
     private val decoratedRequest: ServerHttpRequest = if (tracerWebfluxContext.traceRequestBody &&
@@ -134,7 +137,8 @@ class TracerServerWebExchange(
         return if (requestBodyBaos.size() <= 0) {
             null
         } else {
-            String(requestBodyBaos.toByteArray())
+            requestBodyBaos.toByteArray()
+                .toLimitedString(maxPayloadLength, truncated = requestBodyBaos.isTruncated())
         }
     }
 
@@ -146,7 +150,8 @@ class TracerServerWebExchange(
         return if (responseBodyBaos.size() <= 0) {
             null
         } else {
-            String(responseBodyBaos.toByteArray())
+            responseBodyBaos.toByteArray()
+                .toLimitedString(maxPayloadLength, truncated = responseBodyBaos.isTruncated())
         }
     }
 

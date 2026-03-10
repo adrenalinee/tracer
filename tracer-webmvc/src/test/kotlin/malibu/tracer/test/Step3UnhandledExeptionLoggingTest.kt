@@ -1,12 +1,12 @@
 package malibu.tracer.test
 
+import jakarta.servlet.ServletException
 import malibu.tracer.TraceSpanId
 import malibu.tracer.TracerLogger
 import malibu.tracer.io.TraceLog
 import malibu.tracer.test.controller.Step3LoggerTestController
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
 import malibu.tracer.webmvc.TracerWebMvcContextApplyer
-import jakarta.servlet.ServletException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -14,16 +14,16 @@ import org.mockito.Mockito.any
 import org.mockito.Mockito.times
 import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.resttestclient.TestRestTemplate
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.RequestEntity
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.net.URI
 
 @SpringBootTest(
-    classes = *[
+    classes = [
         LoggerTestConfiguration::class,
         Step3UnhandledExeptionLoggingTest.RequestBodyTracedConfiguration::class
     ],
@@ -31,7 +31,7 @@ import java.net.URI
 class Step3UnhandledExeptionLoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebflux(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
             context.traceRequestBody = true
             context.traceResponseBody = true
         }
@@ -43,7 +43,7 @@ class Step3UnhandledExeptionLoggingTest {
     @Autowired
     lateinit var testRestTemplate: TestRestTemplate
 
-    @MockBean
+    @MockitoBean
     lateinit var tracerLogger: TracerLogger
 
     private val path = "/step3/unhandledError"

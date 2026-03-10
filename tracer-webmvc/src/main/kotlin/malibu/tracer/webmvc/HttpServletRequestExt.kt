@@ -47,7 +47,7 @@ fun HttpServletRequest.getHttpHeaders(): HttpHeaders {
     return this.headerNames.toList()
         .map { it to this.getHeaders(it).toList() }
         .fold(HttpHeaders()) { headers, pair ->
-            headers[pair.first] = pair.second
+            headers.put(pair.first, pair.second)
 
             headers
         }

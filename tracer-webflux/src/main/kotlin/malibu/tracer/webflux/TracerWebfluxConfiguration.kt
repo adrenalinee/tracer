@@ -47,7 +47,7 @@ open class TracerWebfluxConfiguration(
     }
 
     @Bean
-    open fun webfluxTracerLogger(): WebfluxTracerLogger {
-        return WebfluxTracerLogger(tracerLogger)
+    open fun webfluxTracerLogger(): WebFluxTracerLogger {
+        return WebFluxTracerLogger(tracerLogger)
     }
 }

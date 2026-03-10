@@ -16,6 +16,11 @@ class TracerWebMvcContext {
 //    var detailLogging: Boolean = false
 
     /**
+     * 최대 바디 로깅 길이 (byte 기준)
+     */
+    var maxPayloadLength: Int = 64 * 1024
+
+    /**
      * 해더를 하나의 필드로 출력할지, 각 해더를 하나의 필드로 출력할지 결정
      */
     var mergedHeader: Boolean = false

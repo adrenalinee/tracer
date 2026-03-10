@@ -13,15 +13,15 @@ import org.mockito.Mockito.any
 import org.mockito.Mockito.times
 import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.resttestclient.TestRestTemplate
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.RequestEntity
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 @SpringBootTest(
-    classes = *[
+    classes = [
         LoggerTestConfiguration::class,
         Step2LoggingTest.RequestBodyTracedConfiguration::class
     ],
@@ -29,7 +29,7 @@ import org.springframework.http.RequestEntity
 class Step2LoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebflux(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
             context.traceResponseBody = true
         }
     }
@@ -40,7 +40,7 @@ class Step2LoggingTest {
     @Autowired
     lateinit var testRestTemplate: TestRestTemplate
 
-    @MockBean
+    @MockitoBean
     lateinit var tracerLogger: TracerLogger
 
     private val path = "/step2"
