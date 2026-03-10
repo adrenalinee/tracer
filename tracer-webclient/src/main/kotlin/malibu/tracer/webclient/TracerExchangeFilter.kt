@@ -2,7 +2,11 @@ package malibu.tracer.webclient
 
 import malibu.tracer.*
 import malibu.tracer.io.ConnectHttpLog
-import org.springframework.web.reactive.function.client.*
+import malibu.tracer.webmvc.toMultiValueMap
+import org.springframework.web.reactive.function.client.ClientRequest
+import org.springframework.web.reactive.function.client.ClientResponse
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction
+import org.springframework.web.reactive.function.client.ExchangeFunction
 import reactor.core.publisher.Mono
 import java.util.*
 
@@ -38,7 +42,7 @@ class TracerExchangeFilter(
 //        return Mono.subscriberContext()
 //            .flatMap { context ->
         return Mono.deferContextual { contextView ->
-            val traceSpanId = contextView.getOrDefault<malibu.tracer.EachRequestContext?>(TracerContext.ATTR_REQUEST_CONTEXT, null)
+            val traceSpanId = contextView.getOrDefault<EachRequestContext>(TracerContext.ATTR_REQUEST_CONTEXT, null)
                 ?.let { requestContext ->
                     if (requestContext.isInclude.not()) {
                         return@deferContextual next.exchange(request)
@@ -150,7 +154,7 @@ class TracerExchangeFilter(
             url = requestAndBodyHolder.clientRequest.url().toString(),
             path = requestAndBodyHolder.clientRequest.url().path,
             reqHeaders = if (tracerWebClientContext.traceRequestHeaders) {
-                requestAndBodyHolder.clientRequest.headers()
+                requestAndBodyHolder.clientRequest.headers().toMultiValueMap()
             } else {
                 null
             },
@@ -161,7 +165,7 @@ class TracerExchangeFilter(
             },
             status = responseAndBodyHolder?.clientResponse?.statusCode()?.value(),
             resHeaders = if (tracerWebClientContext.traceResponseHeaders) {
-                responseAndBodyHolder?.clientResponse?.headers()?.asHttpHeaders()
+                responseAndBodyHolder?.clientResponse?.headers()?.asHttpHeaders()?.toMultiValueMap()
             } else {
                 null
             },

@@ -7,7 +7,7 @@ plugins {
 
     id("io.spring.dependency-management") version("1.1.7") //apply(false)
 
-    kotlin("jvm") version("1.9.25") apply(false)
+    kotlin("jvm") version("2.2.21") apply(false)
 }
 
 //allprojects {
@@ -52,11 +52,11 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.9")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
         }
 
         imports {
-            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.0")
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.1")
         }
     }
 
@@ -64,12 +64,18 @@ subprojects {
         withSourcesJar()
     }
 
-    tasks.withType<KotlinCompile> {
-        kotlinOptions {
-            freeCompilerArgs = listOf("-Xjsr305=strict")
-            jvmTarget = "21"
-        }
-    }
+//    tasks.withType<KotlinCompile> {
+//        kotlinOptions {
+//            freeCompilerArgs = listOf("-Xjsr305=strict")
+//            jvmTarget = "21"
+//        }
+//    }
+
+//    kotlin {
+//        compilerOptions {
+//            freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+//        }
+//    }
 
     tasks.withType<Test> {
         useJUnitPlatform()

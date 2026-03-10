@@ -6,6 +6,7 @@ import malibu.tracer.io.ResponseHttpLog
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.util.AntPathMatcher
+import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
@@ -42,7 +43,7 @@ class TracerWebFilter(
                 .contextWrite { context ->
                     context.put(
                         TracerContext.ATTR_REQUEST_CONTEXT,
-                        malibu.tracer.EachRequestContext(exchange.request.uri.toString(), path, false, null)
+                        malibu.tracer.EachRequestContext(exchange.request.uri.toString(), path, exchange.request.method.name(), false, null)
                     )
                 }
 //                .subscriberContext { context ->
@@ -51,7 +52,7 @@ class TracerWebFilter(
         }
 
         val traceSpanId = createTraceSpanId(exchange)
-        val requestContext = malibu.tracer.EachRequestContext(exchange.request.uri.toString(), path, true, traceSpanId)
+        val requestContext = malibu.tracer.EachRequestContext(exchange.request.uri.toString(), path, exchange.request.method.name(), true, traceSpanId)
 
         exchange.attributes.put(TracerContext.ATTR_REQUEST_CONTEXT, requestContext)
         exchange.attributes.put(ServerWebExchange.LOG_ID_ATTRIBUTE, traceSpanId.shortTraceId)
@@ -107,7 +108,7 @@ class TracerWebFilter(
             }
 
             //response 로그 출력
-            val throwable = exchange.getAttribute<Throwable?>(TracerContext.ATTR_REQUEST_ERROR)
+            val throwable = exchange.getAttribute<Throwable>(TracerContext.ATTR_REQUEST_ERROR)
             if (throwable != null || exchange.response.statusCode!!.value() >= HttpStatus.BAD_REQUEST.value()) {
                 //error 상황 response 로그 출력
                 tracerLogger.error(
@@ -184,7 +185,13 @@ class TracerWebFilter(
             url = exchange.request.uri.toString(),
             path = exchange.request.uri.path,
             headers = if (tracerWebfluxContext.traceRequestHeaders) {
-                exchange.request.headers
+                exchange.request.headers.let { headers ->
+                    LinkedMultiValueMap<String, String>().also { map ->
+                        headers.forEach { name, values ->
+                            map.put(name, values)
+                        }
+                    }
+                }
             } else {
                 null
             },
@@ -202,12 +209,12 @@ class TracerWebFilter(
     private fun createResponseLog(exchange: TracerServerWebExchange, throwable: Throwable?): ResponseHttpLog {
         return ResponseHttpLog(
             method = exchange.request.method.toString(),
-            status = exchange.response.rawStatusCode,
+            status = exchange.response.statusCode?.value(),
             url = exchange.request.uri.toString(),
             path = exchange.request.uri.path,
             elapsedTime = System.currentTimeMillis() - exchange.startedTime,
             headers = if (tracerWebfluxContext.traceResponseHeaders) {
-                exchange.response.headers
+                exchange.response.headers.toMultiValueMap()
             } else {
                 null
             },

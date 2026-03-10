@@ -1,21 +1,21 @@
 package malibu.tracer.webmvc
 
-import malibu.tracer.*
-import malibu.tracer.io.RequestHttpLog
-import malibu.tracer.io.ResponseHttpLog
 import jakarta.servlet.DispatcherType
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import malibu.tracer.*
+import malibu.tracer.io.RequestHttpLog
+import malibu.tracer.io.ResponseHttpLog
 import mu.KotlinLogging
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.util.AntPathMatcher
+import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.util.ContentCachingRequestWrapper
 import org.springframework.web.util.ContentCachingResponseWrapper
-import kotlin.io.DEFAULT_BUFFER_SIZE
 
 /**
  * 참고:
@@ -76,7 +76,7 @@ class TracerFilter(
 
 
             request.setAttribute(TracerContext.ATTR_REQUEST_CONTEXT,
-                malibu.tracer.EachRequestContext(request.getUrl(), path, false, null)
+                malibu.tracer.EachRequestContext(request.getUrl(), path, request.method, false, null)
             )
             return true
         }
@@ -107,6 +107,7 @@ class TracerFilter(
                     val requestContext = malibu.tracer.EachRequestContext(
                         url = servletExchange.request.getUrl(),
                         path = request.requestURI,
+                        method = request.method,
                         isInclude = true,
                         traceSpanId = traceSpanId
                     )
@@ -219,7 +220,11 @@ fun createRequestLog(tracerWebMvcContext: TracerWebMvcContext, servletExchange: 
         method = servletExchange.request.method.toString(),
         url = servletExchange.request.getUrl(),
         path = servletExchange.request.getPath(),
-        headers = if (tracerWebMvcContext.traceRequestHeaders) { servletExchange.request.getHttpHeaders() } else { null },
+        headers = if (tracerWebMvcContext.traceRequestHeaders) {
+            servletExchange.request.getHttpHeaders().toMultiValueMap()
+        } else {
+            null
+        },
         body = if (tracerWebMvcContext.traceRequestBody) {servletExchange.genRequestBody() } else { null }
     )
 }
@@ -227,14 +232,31 @@ fun createRequestLog(tracerWebMvcContext: TracerWebMvcContext, servletExchange: 
 /**
  * @param path - null: request 에서 path 확인, not null: 입력된 값을 path 로 사용. (error type request 일때는 request 의 path 가 원래의 path 가 아니다.)
  */
-fun createResponseLog(tracerWebMvcContext: TracerWebMvcContext, servletExchange: ServletExchange, throwable: Throwable?, path: String? = null, url: String? = null): ResponseHttpLog {
+fun createResponseLog(
+    tracerWebMvcContext: TracerWebMvcContext,
+    servletExchange: ServletExchange,
+    throwable: Throwable?,
+    method: String? = null,
+    path: String? = null,
+    url: String? = null
+): ResponseHttpLog {
     return ResponseHttpLog(
-        method = servletExchange.request.method.toString(),
+        method = method ?: servletExchange.request.method.toString(),
         status = servletExchange.response.status,
         url = url?.let { it }?: servletExchange.request.getUrl(),
         path = path?: servletExchange.request.getPath(),
         elapsedTime = System.currentTimeMillis() - servletExchange.startedTime,
-        headers = if (tracerWebMvcContext.traceResponseHeaders) { servletExchange.response.getHttpHeaders() } else { null },
+        headers = if (tracerWebMvcContext.traceResponseHeaders) {
+            servletExchange.response.getHttpHeaders().let { headers ->
+                LinkedMultiValueMap<String, String>().also { map ->
+                    headers.forEach { name, values ->
+                        map.put(name, values)
+                    }
+                }
+            }
+        } else {
+            null
+        },
         body = if (tracerWebMvcContext.traceResponseBody) { servletExchange.genResponseBody() } else { null },
         error = if (tracerWebMvcContext.tracedError) {
             throwable?.traceToString()

@@ -51,13 +51,14 @@ class ErrorTypeFilterProcessor(
 
         filterChain.doFilter(request, response)
 
+        val method = RequestContextHolder.context().method
         val url = RequestContextHolder.context().url
         val path = RequestContextHolder.context().path
 //        val throwable = RequestContextHolder.context().getError()
         val throwable = request.getAttribute(TracerContext.ATTR_REQUEST_ERROR) as Throwable?
 
         //에러처리일때 response 로그 출력
-        val responseHttpLog = createResponseLog(tracerWebMvcContext, servletExchange, throwable, path, url)
+        val responseHttpLog = createResponseLog(tracerWebMvcContext, servletExchange, throwable, method, path, url)
         tracerLogger.error(
             responseHttpLog,
             "HTTP response: ${response.status} ${HttpStatus.resolve(response.status)?.reasonPhrase}",

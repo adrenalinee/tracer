@@ -7,7 +7,7 @@ import malibu.tracer.TracerLogger
 import malibu.tracer.io.TraceLog
 import reactor.core.publisher.Mono
 
-class WebfluxTracerLogger(
+class WebFluxTracerLogger(
     private val tracerLogger: TracerLogger
 ) {
 
@@ -46,7 +46,7 @@ class WebfluxTracerLogger(
 
     fun getTraceSpanId(): Mono<TraceSpanId> {
         return Mono.deferContextual { contextView ->
-            contextView.getOrDefault<malibu.tracer.EachRequestContext?>(TracerContext.ATTR_REQUEST_CONTEXT, null)
+            contextView.getOrDefault<EachRequestContext>(TracerContext.ATTR_REQUEST_CONTEXT, null)
                 ?.let { it.traceSpanId }
                 ?.let { Mono.just(it) }
                 ?: Mono.empty()
@@ -60,9 +60,9 @@ class WebfluxTracerLogger(
 //            }
     }
 
-    fun getRequestContext(): Mono<malibu.tracer.EachRequestContext> {
+    fun getRequestContext(): Mono<EachRequestContext> {
         return Mono.deferContextual { contextView ->
-            contextView.getOrDefault<malibu.tracer.EachRequestContext?>(TracerContext.ATTR_REQUEST_CONTEXT, null)
+            contextView.getOrDefault<EachRequestContext>(TracerContext.ATTR_REQUEST_CONTEXT, null)
                 ?.let { Mono.just(it) }
                 ?: Mono.empty()
         }
