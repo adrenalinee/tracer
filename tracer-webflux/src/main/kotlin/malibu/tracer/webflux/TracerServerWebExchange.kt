@@ -4,6 +4,7 @@ import malibu.tracer.io.LimitedByteArrayOutputStream
 import malibu.tracer.io.toLimitedString
 import org.reactivestreams.Publisher
 import org.springframework.core.io.buffer.DataBuffer
+import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator
 import org.springframework.http.server.reactive.ServerHttpResponse
@@ -13,6 +14,7 @@ import org.springframework.web.server.ServerWebExchangeDecorator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.nio.channels.Channels
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * request 당 하나씩 생성됨.
@@ -23,10 +25,25 @@ class TracerServerWebExchange(
     tracerWebfluxContext: TracerWebfluxContext
 ): ServerWebExchangeDecorator(exchange) {
 
+    companion object {
+        private const val SSE_EVENT_DELIMITER = "\n\n"
+        private const val SSE_EVENT_DELIMITER_CRLF = "\r\n\r\n"
+    }
+
     /**
      * request body 읽기가 끝나면 진행할 액션
      */
     lateinit var onRequestBodyReadComplete: () -> Unit
+
+    /**
+     * response body write 가 종료되면 진행할 액션
+     */
+    lateinit var onResponseWriteComplete: () -> Unit
+
+    /**
+     * SSE 이벤트가 완성될 때마다 진행할 액션
+     */
+    lateinit var onResponseSseEvent: (String) -> Unit
 
     /**
      * request 처리 시작시간
@@ -49,6 +66,10 @@ class TracerServerWebExchange(
      * 복사된 response body
      */
     private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
+
+    private val responseWriteCompleted = AtomicBoolean(false)
+
+    private val sseEventBuffer = StringBuilder()
 
 
     private val decoratedRequest: ServerHttpRequest = if (tracerWebfluxContext.traceRequestBody &&
@@ -73,21 +94,38 @@ class TracerServerWebExchange(
         exchange.request
     }
 
-    private val decoratedResponse: ServerHttpResponse = if (tracerWebfluxContext.traceResponseBody) {
-        object : ServerHttpResponseDecorator(exchange.response) {
-            override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
-                return delegate.writeWith(responseBodyFn(body))
-            }
+    private val traceResponseBody = tracerWebfluxContext.traceResponseBody
 
-            override fun writeAndFlushWith(body: Publisher<out Publisher<out DataBuffer>>): Mono<Void> {
-                return delegate.writeAndFlushWith(Flux.from(body)
-                    .doOnNext {
-                        responseBodyFn(it)
-                    })
+    private val decoratedResponse: ServerHttpResponse = object : ServerHttpResponseDecorator(exchange.response) {
+        override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
+            return delegate.writeWith(responseBodyFn(body))
+                .doFinally {
+                    notifyResponseWriteComplete()
+                }
+        }
+
+        override fun writeAndFlushWith(body: Publisher<out Publisher<out DataBuffer>>): Mono<Void> {
+            return delegate.writeAndFlushWith(
+                Flux.from(body)
+                    .map { innerBody ->
+                        Flux.from(innerBody)
+                            .doOnNext { partialBody ->
+                                if (traceResponseBody) {
+                                    copyResponseBody(partialBody)
+                                }
+                            }
+                    }
+            ).doFinally {
+                notifyResponseWriteComplete()
             }
         }
-    } else {
-        exchange.response
+
+        override fun setComplete(): Mono<Void> {
+            return delegate.setComplete()
+                .doFinally {
+                    notifyResponseWriteComplete()
+                }
+        }
     }
 
 
@@ -111,8 +149,77 @@ class TracerServerWebExchange(
     private val responseBodyFn: (Publisher<out DataBuffer>) -> Publisher<out DataBuffer> = { body ->
         Flux.from(body)
             .doOnNext { partialBody ->
-                Channels.newChannel(responseBodyBaos).write(partialBody.asByteBuffer().asReadOnlyBuffer())
+                if (traceResponseBody) {
+                    copyResponseBody(partialBody)
+                }
             }
+    }
+
+    private fun copyResponseBody(partialBody: DataBuffer) {
+        val readOnlyBuffer = partialBody.asByteBuffer().asReadOnlyBuffer()
+        val stringBuffer = readOnlyBuffer.asReadOnlyBuffer()
+        Channels.newChannel(responseBodyBaos).write(readOnlyBuffer)
+
+        if (isSseResponse()) {
+            sseEventBuffer.append(readOnlyBufferToString(stringBuffer))
+            emitCompletedSseEvents()
+        }
+    }
+
+    private fun readOnlyBufferToString(readOnlyBuffer: java.nio.ByteBuffer): String {
+        if (!readOnlyBuffer.hasRemaining()) {
+            return ""
+        }
+
+        val bytes = ByteArray(readOnlyBuffer.remaining())
+        readOnlyBuffer.get(bytes)
+        return String(bytes, Charsets.UTF_8)
+    }
+
+    private fun emitCompletedSseEvents() {
+        while (true) {
+            val delimiterInfo = findSseDelimiter() ?: return
+            val event = sseEventBuffer.substring(0, delimiterInfo.first)
+                .trimEnd('\r', '\n')
+
+            sseEventBuffer.delete(0, delimiterInfo.second)
+
+            if (event.isNotBlank()) {
+                onResponseSseEvent(event)
+            }
+        }
+    }
+
+    private fun findSseDelimiter(): Pair<Int, Int>? {
+        val crlfIndex = sseEventBuffer.indexOf(SSE_EVENT_DELIMITER_CRLF)
+        val lfIndex = sseEventBuffer.indexOf(SSE_EVENT_DELIMITER)
+
+        return when {
+            crlfIndex >= 0 && (lfIndex < 0 || crlfIndex <= lfIndex) -> crlfIndex to crlfIndex + SSE_EVENT_DELIMITER_CRLF.length
+            lfIndex >= 0 -> lfIndex to lfIndex + SSE_EVENT_DELIMITER.length
+            else -> null
+        }
+    }
+
+    private fun isSseResponse(): Boolean {
+        return delegateResponseContentType()?.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) == true
+    }
+
+    private fun delegateResponseContentType(): MediaType? {
+        return exchange.response.headers.contentType
+    }
+
+    private fun notifyResponseWriteComplete() {
+        if (responseWriteCompleted.compareAndSet(false, true)) {
+            if (isSseResponse()) {
+                val pendingEvent = sseEventBuffer.toString().trimEnd('\r', '\n')
+                if (pendingEvent.isNotBlank()) {
+                    onResponseSseEvent(pendingEvent)
+                }
+                sseEventBuffer.setLength(0)
+            }
+            onResponseWriteComplete()
+        }
     }
 
     /**

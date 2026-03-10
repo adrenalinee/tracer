@@ -27,7 +27,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
 
     group = "malibu.tracer"
-    version = "14.0"
+    version = "15.0-SNAPSHOT"
 
     java {
         toolchain {
