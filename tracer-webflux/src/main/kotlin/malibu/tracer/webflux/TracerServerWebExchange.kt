@@ -22,7 +22,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class TracerServerWebExchange(
     private val exchange: ServerWebExchange,
-    tracerWebfluxContext: TracerWebfluxContext
+    tracerWebfluxContext: TracerWebfluxContext,
+    requestLoggingEnabled: Boolean,
+    responseLoggingEnabled: Boolean
 ): ServerWebExchangeDecorator(exchange) {
 
     companion object {
@@ -72,7 +74,9 @@ class TracerServerWebExchange(
     private val sseEventBuffer = StringBuilder()
 
 
-    private val decoratedRequest: ServerHttpRequest = if (tracerWebfluxContext.traceRequestBody &&
+    private val traceRequestBody = tracerWebfluxContext.traceRequestBody && requestLoggingEnabled
+
+    private val decoratedRequest: ServerHttpRequest = if (traceRequestBody &&
         exchange.request.headers.contentLength > 0) {
         object: ServerHttpRequestDecorator(exchange.request) {
             override fun getBody(): Flux<DataBuffer> {
@@ -94,7 +98,7 @@ class TracerServerWebExchange(
         exchange.request
     }
 
-    private val traceResponseBody = tracerWebfluxContext.traceResponseBody
+    private val traceResponseBody = tracerWebfluxContext.traceResponseBody && responseLoggingEnabled
 
     private val decoratedResponse: ServerHttpResponse = object : ServerHttpResponseDecorator(exchange.response) {
         override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
