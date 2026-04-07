@@ -43,6 +43,15 @@ fun HttpServletRequest.getUrl(): String {
     } ?: this.requestURL.toString()
 }
 
+fun HttpServletRequest.getTraceRequestUriPath(): String {
+    return when (this.dispatcherType) {
+        jakarta.servlet.DispatcherType.ERROR -> {
+            this.getAttributeOrNull<String>("jakarta.servlet.error.request_uri") ?: this.requestURI
+        }
+        else -> this.requestURI
+    }
+}
+
 fun HttpServletRequest.getHttpHeaders(): HttpHeaders {
     return this.headerNames.toList()
         .map { it to this.getHeaders(it).toList() }

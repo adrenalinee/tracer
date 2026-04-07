@@ -29,7 +29,7 @@ class MyApplication
 ```kotlin
 @Component
 class MyTracerConfiguration: TracerWebMvcConfigurer {
-    override fun configureTracerWebflux(tracerWebMvcContext: TracerWebMvcContextApplyer) {
+    override fun configureTracerWebMvc(tracerWebMvcContext: TracerWebMvcContextApplyer) {
         // TODO
     }
 }
@@ -41,6 +41,29 @@ class MyTracerConfiguration: TracerWebMvcConfigurer {
  - **traceRequestHeaders**: rquest header 를 출력할지 결정, **type**: boolean, **default**: false
  - **traceResponseHeaders**: response header 를 출력할지 결정, **type**: boolean, **default**: false
  - **excludePathPaterns**: trace log 를 출력하지 않을 request path 를 등록, **type**: array(string), **default**: []
+ - **requestTracePredicate**: request 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(HttpServletRequest) -> Boolean`, **default**: 항상 true
+ - **responseTracePredicate**: response 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(HttpServletRequest) -> Boolean`, **default**: 항상 true
+
+```kotlin
+@Component
+class MyTracerConfiguration: TracerWebMvcConfigurer {
+    override fun configureTracerWebMvc(tracerWebMvcContext: TracerWebMvcContextApplyer) {
+        tracerWebMvcContext
+            .addRequestTracePredicate { request ->
+                request.requestURI != "/health"
+            }
+            .addResponseTracePredicate(
+                TracerWebMvcLoggingPredicates.excludePathPattern("/api/large-response")
+            )
+    }
+}
+```
+
+기존과 동일하게 path pattern 기반으로 request/response 둘 다 제외하고 싶다면 아래처럼 사용할 수 있습니다.
+
+```kotlin
+tracerWebMvcContext.addExcludePathPatterns("/internal/**")
+```
 
 
 
@@ -141,5 +164,3 @@ response body 는 request body는 `tracerWebMvcContext.traceResponseBody = true`
 ```
 2022-07-12 14:53:01.529 DEBUG 17712 --- [ctor-http-nio-3] TRACER_DETAIL_LOG : [202acd7e-8] RESPONSE: HTTP response body: ~~~~
 ```
-
-

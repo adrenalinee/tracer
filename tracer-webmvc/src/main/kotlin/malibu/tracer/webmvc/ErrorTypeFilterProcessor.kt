@@ -1,13 +1,13 @@
 package malibu.tracer.webmvc
 
+import jakarta.servlet.DispatcherType
+import jakarta.servlet.FilterChain
 import malibu.tracer.TraceSpanId
 import malibu.tracer.TracerContext
 import malibu.tracer.TracerLogger
-import jakarta.servlet.DispatcherType
-import jakarta.servlet.FilterChain
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
-import org.springframework.web.util.ContentCachingResponseWrapper
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ErrorTypeFilterProcessor(
     private val tracerLogger: TracerLogger,
@@ -16,14 +16,11 @@ class ErrorTypeFilterProcessor(
 
     private val logger = KotlinLogging.logger {}
 
-//    private val traceDataCreatorRegistry = TraceDataCreatorRegistry.getInstance()
-
     fun doFilter(
-//        request: HttpServletRequest,
-//        response: HttpServletResponse,
         traceSpanId: TraceSpanId,
         servletExchange: ServletExchange,
-        filterChain: FilterChain
+        filterChain: FilterChain,
+        responseLoggingEnabled: Boolean
     ) {
         logger.debug { "start" }
 
@@ -34,30 +31,27 @@ class ErrorTypeFilterProcessor(
             throw RuntimeException("dispatcherType이 ERROR가 아닙니다. dispatcherType: ${request.dispatcherType}")
         }
 
-//        val arrangedRequest = if (tracerWebMvcContext.traceRequestBody) {
-//            ContentCachingRequestWrapper(request)
-//        } else {
-//            request
-//        }
-//
-//        val arrangedResponse = if (tracerWebMvcContext.traceResponseBody) {
-//            ContentCachingResponseWrapper(response)
-//        } else {
-//            response
-//        }
-
-//        val servletExchange = ServletExchange(arrangedRequest, arrangedResponse)
-//        val traceSpanId = RequestContextHolder.context().traceSpanId
-
         filterChain.doFilter(request, response)
+
+        if (responseLoggingEnabled.not()) {
+            servletExchange.notifyResponseComplete()
+            return
+        }
+
+        val state = request.getAttribute(TracerFilter.ATTR_RESPONSE_LOGGED) as? AtomicBoolean
+            ?: AtomicBoolean(false).also {
+                request.setAttribute(TracerFilter.ATTR_RESPONSE_LOGGED, it)
+            }
+        if (state.compareAndSet(false, true).not()) {
+            servletExchange.notifyResponseComplete()
+            return
+        }
 
         val method = RequestContextHolder.context().method
         val url = RequestContextHolder.context().url
         val path = RequestContextHolder.context().path
-//        val throwable = RequestContextHolder.context().getError()
         val throwable = request.getAttribute(TracerContext.ATTR_REQUEST_ERROR) as Throwable?
 
-        //에러처리일때 response 로그 출력
         val responseHttpLog = createResponseLog(tracerWebMvcContext, servletExchange, throwable, method, path, url)
         tracerLogger.error(
             responseHttpLog,
@@ -76,8 +70,6 @@ class ErrorTypeFilterProcessor(
             tracerLogger.deDat(responseHttpLog, "HTTP response body: $body", traceSpanId)
         }
 
-        if (response is ContentCachingResponseWrapper) {
-            response.copyBodyToResponse()
-        }
+        servletExchange.notifyResponseComplete()
     }
 }

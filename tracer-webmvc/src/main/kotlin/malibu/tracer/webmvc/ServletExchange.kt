@@ -54,16 +54,18 @@ class ServletExchange(
     }
 
     fun genResponseBody(): String? {
-        return if (response is ContentCachingResponseWrapper) {
-            if (response.contentSize > 0) {
-                val content = response.contentAsByteArray
-                val truncated = maxPayloadLength > 0 && content.size >= maxPayloadLength
-                content.toLimitedString(maxPayloadLength, truncated = truncated)
-            } else {
-                null
+        return when (response) {
+            is TracingHttpServletResponseWrapper -> response.genResponseBody()
+            is ContentCachingResponseWrapper -> {
+                if (response.contentSize > 0) {
+                    val content = response.contentAsByteArray
+                    val truncated = maxPayloadLength > 0 && content.size >= maxPayloadLength
+                    content.toLimitedString(maxPayloadLength, truncated = truncated)
+                } else {
+                    null
+                }
             }
-        } else {
-            null
+            else -> null
         }
     }
 
@@ -78,10 +80,18 @@ class ServletExchange(
      * response body 의 길이
      */
     fun getResponseBodySize(): Int {
-        return if (response is ContentCachingResponseWrapper) {
-            response.contentSize
-        } else {
-             -1 //알 수 없음.
+        return when (response) {
+            is TracingHttpServletResponseWrapper -> response.getContentSize()
+            is ContentCachingResponseWrapper -> response.contentSize
+            else -> -1 //알 수 없음.
         }
+    }
+
+    fun notifyResponseComplete() {
+        (response as? TracingHttpServletResponseWrapper)?.notifyResponseComplete()
+    }
+
+    fun setOnResponseSseEvent(action: (String) -> Unit) {
+        (response as? TracingHttpServletResponseWrapper)?.onResponseSseEvent = action
     }
 }

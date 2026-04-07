@@ -9,6 +9,7 @@ import malibu.tracer.webmvc.TracerWebMvcContextApplyer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.timeout
 import org.mockito.Mockito.any
 import org.mockito.Mockito.times
 import org.mockito.kotlin.*
@@ -93,7 +94,7 @@ class Step3HandledExceptionLoggingTest {
         val traceLogCaptor = argumentCaptor<TraceLog>()
         val logContextCaptor = nullableArgumentCaptor<Any>()
         val traceSpanIdCaptor = nullableArgumentCaptor<TraceSpanId>()
-        verify(tracerLogger, times(2)).infor(
+        verify(tracerLogger, timeout(1000).times(2)).infor(
             traceLog = traceLogCaptor.capture(),
             message = anyOrNull(),
             logContext = logContextCaptor.capture(),
