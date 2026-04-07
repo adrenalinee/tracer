@@ -12,7 +12,6 @@ import org.mockito.Mockito.timeout
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.atLeast
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.given
 import org.mockito.kotlin.nullableArgumentCaptor
@@ -85,14 +84,14 @@ class SseLoggingTest {
         assertThat(responseTraceSpanCaptor.lastValue).isNotNull
 
         val detailLogCaptor = argumentCaptor<String>()
-        verify(tracerLogger, atLeast(2)).deDat(
+        verify(tracerLogger, atLeastOnce()).deDat(
             traceLog = any(),
             message = detailLogCaptor.capture(),
             traceSpanId = anyOrNull(),
             additionalLogId = anyOrNull()
         )
 
-        assertThat(detailLogCaptor.allValues).contains("HTTP response sse event: id:1\nevent:message\ndata:first")
-        assertThat(detailLogCaptor.allValues).contains("HTTP response sse event: id:2\nevent:message\ndata:second")
+        assertThat(detailLogCaptor.allValues).contains("HTTP response body: ${responseTraceLog.body}")
+        assertThat(detailLogCaptor.allValues).noneMatch { it.startsWith("HTTP response sse event:") }
     }
 }

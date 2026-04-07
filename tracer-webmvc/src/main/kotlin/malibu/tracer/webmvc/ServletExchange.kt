@@ -90,8 +90,4 @@ class ServletExchange(
     fun notifyResponseComplete() {
         (response as? TracingHttpServletResponseWrapper)?.notifyResponseComplete()
     }
-
-    fun setOnResponseSseEvent(action: (String) -> Unit) {
-        (response as? TracingHttpServletResponseWrapper)?.onResponseSseEvent = action
-    }
 }

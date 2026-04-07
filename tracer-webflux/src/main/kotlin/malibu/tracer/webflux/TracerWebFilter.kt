@@ -71,9 +71,6 @@ class TracerWebFilter(
         tracerExchange.onResponseWriteComplete = {
             responseLogging(traceSpanId, tracerExchange, responseLoggingEnabled, responseLoggingState)
         }
-        tracerExchange.onResponseSseEvent = { event ->
-            sseEventLogging(traceSpanId, tracerExchange, responseLoggingEnabled, event)
-        }
 
         initExchange(tracerExchange, traceSpanId, requestLoggingEnabled)
 
@@ -182,27 +179,6 @@ class TracerWebFilter(
                 }
             }
         }
-    }
-
-    private fun sseEventLogging(
-        traceSpanId: TraceSpanId,
-        exchange: TracerServerWebExchange,
-        responseLoggingEnabled: Boolean,
-        event: String
-    ) {
-        if (responseLoggingEnabled.not()) {
-            return
-        }
-
-        if (tracerLogger.isDebugDetailEnabled().not()) {
-            return
-        }
-
-        tracerLogger.deDat(
-            createResponseLog(exchange, null, event),
-            "HTTP response sse event: $event",
-            traceSpanId
-        )
     }
 
     /**

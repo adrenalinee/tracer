@@ -44,10 +44,6 @@ class RequestTypeFilterProcessor(
             requestLogging(traceSpanId, servletExchange)
         }
 
-        servletExchange.setOnResponseSseEvent { event ->
-            sseEventLogging(traceSpanId, servletExchange, responseLoggingEnabled, event)
-        }
-
         try {
             filterChain.doFilter(request, response)
 
@@ -123,27 +119,6 @@ class RequestTypeFilterProcessor(
                 tracerLogger.deDat(responseHttpLog, "HTTP response body: $body", traceSpanId)
             }
         }
-    }
-
-    private fun sseEventLogging(
-        traceSpanId: TraceSpanId,
-        servletExchange: ServletExchange,
-        responseLoggingEnabled: Boolean,
-        event: String
-    ) {
-        if (responseLoggingEnabled.not()) {
-            return
-        }
-
-        if (tracerLogger.isDebugDetailEnabled().not()) {
-            return
-        }
-
-        tracerLogger.deDat(
-            createResponseLog(tracerWebMvcContext, servletExchange, null, body = event),
-            "HTTP response sse event: $event",
-            traceSpanId
-        )
     }
 
     private fun registerAsyncResponseLogging(
