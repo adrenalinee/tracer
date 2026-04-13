@@ -1,5 +1,7 @@
 package malibu.tracer.webclient
 
+import org.springframework.web.reactive.function.client.ClientRequest
+
 class TracerWebClientContextApplyer(
     var traceRequestBody: Boolean? = null,
     var traceResponseBody: Boolean? = null,
@@ -12,6 +14,47 @@ class TracerWebClientContextApplyer(
 //    var detailLogging: Boolean? = null
 ) {
 
+    private val excludePathPatterns = mutableListOf<String>()
+    private val requestTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
+    private val responseTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
+
+    /**
+     * @param pathPattern - ant path pattern
+     */
+    fun addExcludePathPatterns(pathPattern: String): TracerWebClientContextApplyer {
+        excludePathPatterns.add(pathPattern)
+        addTracePredicate(TracerWebClientLoggingPredicates.excludePathPattern(pathPattern))
+        return this
+    }
+
+    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+        addRequestTracePredicate(predicate)
+        addResponseTracePredicate(predicate)
+        return this
+    }
+
+    fun addTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+        return addTracePredicate(TraceHttpRequestPredicate(predicate))
+    }
+
+    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+        requestTracePredicates.add(predicate)
+        return this
+    }
+
+    fun addRequestTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+        return addRequestTracePredicate(TraceHttpRequestPredicate(predicate))
+    }
+
+    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+        responseTracePredicates.add(predicate)
+        return this
+    }
+
+    fun addResponseTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+        return addResponseTracePredicate(TraceHttpRequestPredicate(predicate))
+    }
+
     fun apply(webClientContext: TracerWebClientContext) {
         traceRequestBody?.also { webClientContext.traceRequestBody = it }
         traceResponseBody?.also { webClientContext.traceResponseBody = it }
@@ -19,5 +62,9 @@ class TracerWebClientContextApplyer(
         traceResponseHeaders?.also { webClientContext.traceResponseHeaders = it }
 
 //        detailLogging?.also { webClientContext.detailLogging = it }
+
+        excludePathPatterns.forEach { webClientContext.excludePathPatterns.add(it) }
+        webClientContext.requestTracePredicates.addAll(requestTracePredicates)
+        webClientContext.responseTracePredicates.addAll(responseTracePredicates)
     }
 }

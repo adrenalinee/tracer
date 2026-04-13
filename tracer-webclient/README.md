@@ -49,7 +49,7 @@ class MyComponent(
 ```kotlin
 @Component
 class MyTracerConfiguration: TracerWebClientConfigurer {
-    override fun configureTracerWebClient(tracerWebClientContext: TracerWebClientContextApplyer) {
+    override fun configureTracerWebClient(tracerWebClientContext: TracerWebClientContextApplier) {
         // TODO
     }
 }
@@ -61,6 +61,27 @@ class MyTracerConfiguration: TracerWebClientConfigurer {
 - **traceResponseBody**: response body를 출력할지 결정, **type**: boolean, **default**: false
 - **traceRequestHeaders**: rquest header 를 출력할지 결정, **type**: boolean, **default**: false
 - **traceResponseHeaders**: response header 를 출력할지 결정, **type**: boolean, **default**: false
+- **excludePathPatterns**: trace log 를 출력하지 않을 request path 를 등록, **type**: ant-style path pattern, **default**: []
+- **requestTracePredicate**: request 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(ClientRequest) -> Boolean`, **default**: 항상 true
+- **responseTracePredicate**: response 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(ClientRequest) -> Boolean`, **default**: 항상 true
+
+```kotlin
+@Component
+class MyTracerConfiguration: TracerWebClientConfigurer {
+    override fun configureTracerWebClient(tracerWebClientContext: TracerWebClientContextApplier) {
+        tracerWebClientContext.traceRequestBody = true
+        tracerWebClientContext.traceResponseBody = true
+
+        tracerWebClientContext.addExcludePathPatterns("/actuator/**")
+        tracerWebClientContext.addRequestTracePredicate(
+            TracerWebClientLoggingPredicates.excludePathPattern("/response-only")
+        )
+        tracerWebClientContext.addResponseTracePredicate { request ->
+            request.headers().getFirst("X-Skip-Response") != "true"
+        }
+    }
+}
+```
 
 
 
@@ -95,5 +116,4 @@ response body 는 request body는 `tracerWebClientContext.traceResponseBody = tr
 2022-07-12 15:06:24.644 DEBUG 17712 --- [ctor-http-nio-3] TRACER_DETAIL_LOG : [d3540e57-4][7f36617c-3] CONNECT: HTTP response body: ~~~~
 
 ```
-
 
