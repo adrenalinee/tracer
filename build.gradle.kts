@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     id("java-library") //apply(false)
 //    id("maven-publish") //apply(false)
@@ -9,12 +7,6 @@ plugins {
 
     kotlin("jvm") version("2.2.21") apply(false)
 }
-
-//allprojects {
-//    repositories {
-//        mavenCentral()
-//    }
-//}
 
 tasks.named<Jar>("jar") {
     enabled = false
@@ -27,7 +19,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
 
     group = "malibu.tracer"
-    version = "14.0"
+    version = "15.0"
 
     java {
         toolchain {
@@ -64,19 +56,6 @@ subprojects {
         withSourcesJar()
     }
 
-//    tasks.withType<KotlinCompile> {
-//        kotlinOptions {
-//            freeCompilerArgs = listOf("-Xjsr305=strict")
-//            jvmTarget = "21"
-//        }
-//    }
-
-//    kotlin {
-//        compilerOptions {
-//            freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
-//        }
-//    }
-
     tasks.withType<Test> {
         useJUnitPlatform()
     }
@@ -93,10 +72,6 @@ subprojects {
                     username = System.getenv("USERNAME")?: project.findProperty("gpr.user") as String?
                     password = System.getenv("TOKEN")?: project.findProperty("gpr.key") as String?
                 }
-//                val releasesRepoUrl = uri("")
-//                val snapshotsRepoUrl = uri("")
-//                url = uri(if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
-//                isAllowInsecureProtocol = true
             }
         }
 
@@ -104,14 +79,6 @@ subprojects {
             register<MavenPublication>("gpr") {
                 from(components["java"])
             }
-//            create<MavenPublication>("maven") {
-//                groupId = group.toString()
-//                artifactId = project.name
-//                version = version
-//
-//
-//                from(components["java"])
-//            }
         }
     }
 }

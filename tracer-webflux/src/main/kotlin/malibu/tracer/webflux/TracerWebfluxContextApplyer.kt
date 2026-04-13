@@ -1,5 +1,7 @@
 package malibu.tracer.webflux
 
+import org.springframework.http.server.reactive.ServerHttpRequest
+
 class TracerWebfluxContextApplyer(
     var traceRequestBody: Boolean? = null,
     var traceResponseBody: Boolean? = null,
@@ -23,14 +25,45 @@ class TracerWebfluxContextApplyer(
     var tracedError: Boolean? = null
 ) {
 
-    private val excludePathPaterns = mutableListOf<String>()
+    private val excludePathPatterns = mutableListOf<String>()
+    private val requestTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
+    private val responseTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
 
     /**
      * @param pathPattern - ant path pattern
      */
-    fun addExcludePathPaterns(pathPattern: String): TracerWebfluxContextApplyer {
-        excludePathPaterns.add(pathPattern)
+    fun addExcludePathPatterns(pathPattern: String): TracerWebfluxContextApplyer {
+        excludePathPatterns.add(pathPattern)
+        addTracePredicate(TracerWebfluxLoggingPredicates.excludePathPattern(pathPattern))
         return this
+    }
+
+    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+        addRequestTracePredicate(predicate)
+        addResponseTracePredicate(predicate)
+        return this
+    }
+
+    fun addTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+        return addTracePredicate(TraceHttpRequestPredicate(predicate))
+    }
+
+    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+        requestTracePredicates.add(predicate)
+        return this
+    }
+
+    fun addRequestTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+        return addRequestTracePredicate(TraceHttpRequestPredicate(predicate))
+    }
+
+    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+        responseTracePredicates.add(predicate)
+        return this
+    }
+
+    fun addResponseTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+        return addResponseTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
     internal fun apply(tracerWebfluxContext: TracerWebfluxContext) {
@@ -44,6 +77,8 @@ class TracerWebfluxContextApplyer(
         mergedHeader?.also { tracerWebfluxContext.mergedHeader = it }
         tracedError?.also { tracerWebfluxContext.tracedError = it }
 
-        excludePathPaterns.forEach { tracerWebfluxContext.excludePathPaterns.add(it) }
+        excludePathPatterns.forEach { tracerWebfluxContext.excludePathPaterns.add(it) }
+        tracerWebfluxContext.requestTracePredicates.addAll(requestTracePredicates)
+        tracerWebfluxContext.responseTracePredicates.addAll(responseTracePredicates)
     }
 }

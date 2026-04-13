@@ -5,4 +5,7 @@ dependencies {
     api("org.springframework:spring-webflux")
 
     compileOnly(project(":tracer-webmvc"))
+
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

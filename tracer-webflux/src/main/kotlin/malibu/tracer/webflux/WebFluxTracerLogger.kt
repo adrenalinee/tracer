@@ -51,13 +51,6 @@ class WebFluxTracerLogger(
                 ?.let { Mono.just(it) }
                 ?: Mono.empty()
         }
-//        return Mono.subscriberContext()
-//            .flatMap { context ->
-//                context.getOrDefault<EachRequestContext?>(TracerContext.ATTR_REQUEST_CONTEXT, null)
-//                    ?.let { it.traceSpanId }
-//                    ?.let { Mono.just(it) }
-//                    ?: Mono.empty()
-//            }
     }
 
     fun getRequestContext(): Mono<EachRequestContext> {
@@ -66,12 +59,5 @@ class WebFluxTracerLogger(
                 ?.let { Mono.just(it) }
                 ?: Mono.empty()
         }
-
-//        return Mono.subscriberContext()
-//            .flatMap { context ->
-//                context.getOrDefault<EachRequestContext?>(TracerContext.ATTR_REQUEST_CONTEXT, null)
-//                    ?.let { Mono.just(it) }
-//                    ?: Mono.empty<EachRequestContext>()
-//            }
     }
 }

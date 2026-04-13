@@ -13,6 +13,7 @@ import org.springframework.web.server.ServerWebExchangeDecorator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.nio.channels.Channels
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * request 당 하나씩 생성됨.
@@ -20,13 +21,20 @@ import java.nio.channels.Channels
  */
 class TracerServerWebExchange(
     private val exchange: ServerWebExchange,
-    tracerWebfluxContext: TracerWebfluxContext
+    tracerWebfluxContext: TracerWebfluxContext,
+    requestLoggingEnabled: Boolean,
+    responseLoggingEnabled: Boolean
 ): ServerWebExchangeDecorator(exchange) {
 
     /**
      * request body 읽기가 끝나면 진행할 액션
      */
     lateinit var onRequestBodyReadComplete: () -> Unit
+
+    /**
+     * response body write 가 종료되면 진행할 액션
+     */
+    lateinit var onResponseWriteComplete: () -> Unit
 
     /**
      * request 처리 시작시간
@@ -50,8 +58,12 @@ class TracerServerWebExchange(
      */
     private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
+    private val responseWriteCompleted = AtomicBoolean(false)
 
-    private val decoratedRequest: ServerHttpRequest = if (tracerWebfluxContext.traceRequestBody &&
+
+    private val traceRequestBody = tracerWebfluxContext.traceRequestBody && requestLoggingEnabled
+
+    private val decoratedRequest: ServerHttpRequest = if (traceRequestBody &&
         exchange.request.headers.contentLength > 0) {
         object: ServerHttpRequestDecorator(exchange.request) {
             override fun getBody(): Flux<DataBuffer> {
@@ -73,21 +85,38 @@ class TracerServerWebExchange(
         exchange.request
     }
 
-    private val decoratedResponse: ServerHttpResponse = if (tracerWebfluxContext.traceResponseBody) {
-        object : ServerHttpResponseDecorator(exchange.response) {
-            override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
-                return delegate.writeWith(responseBodyFn(body))
-            }
+    private val traceResponseBody = tracerWebfluxContext.traceResponseBody && responseLoggingEnabled
 
-            override fun writeAndFlushWith(body: Publisher<out Publisher<out DataBuffer>>): Mono<Void> {
-                return delegate.writeAndFlushWith(Flux.from(body)
-                    .doOnNext {
-                        responseBodyFn(it)
-                    })
+    private val decoratedResponse: ServerHttpResponse = object : ServerHttpResponseDecorator(exchange.response) {
+        override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
+            return delegate.writeWith(responseBodyFn(body))
+                .doFinally {
+                    notifyResponseWriteComplete()
+                }
+        }
+
+        override fun writeAndFlushWith(body: Publisher<out Publisher<out DataBuffer>>): Mono<Void> {
+            return delegate.writeAndFlushWith(
+                Flux.from(body)
+                    .map { innerBody ->
+                        Flux.from(innerBody)
+                            .doOnNext { partialBody ->
+                                if (traceResponseBody) {
+                                    copyResponseBody(partialBody)
+                                }
+                            }
+                    }
+            ).doFinally {
+                notifyResponseWriteComplete()
             }
         }
-    } else {
-        exchange.response
+
+        override fun setComplete(): Mono<Void> {
+            return delegate.setComplete()
+                .doFinally {
+                    notifyResponseWriteComplete()
+                }
+        }
     }
 
 
@@ -111,8 +140,20 @@ class TracerServerWebExchange(
     private val responseBodyFn: (Publisher<out DataBuffer>) -> Publisher<out DataBuffer> = { body ->
         Flux.from(body)
             .doOnNext { partialBody ->
-                Channels.newChannel(responseBodyBaos).write(partialBody.asByteBuffer().asReadOnlyBuffer())
+                if (traceResponseBody) {
+                    copyResponseBody(partialBody)
+                }
             }
+    }
+
+    private fun copyResponseBody(partialBody: DataBuffer) {
+        Channels.newChannel(responseBodyBaos).write(partialBody.asByteBuffer().asReadOnlyBuffer())
+    }
+
+    private fun notifyResponseWriteComplete() {
+        if (responseWriteCompleted.compareAndSet(false, true)) {
+            onResponseWriteComplete()
+        }
     }
 
     /**
