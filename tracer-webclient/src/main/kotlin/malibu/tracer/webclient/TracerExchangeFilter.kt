@@ -1,6 +1,10 @@
 package malibu.tracer.webclient
 
-import malibu.tracer.*
+import malibu.tracer.EachRequestContext
+import malibu.tracer.TraceSpanId
+import malibu.tracer.TracerContext
+import malibu.tracer.TracerLogger
+import malibu.tracer.traceToString
 import malibu.tracer.io.ConnectHttpLog
 import malibu.tracer.webmvc.toMultiValueMap
 import org.springframework.web.reactive.function.client.ClientRequest
@@ -8,7 +12,7 @@ import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction
 import org.springframework.web.reactive.function.client.ExchangeFunction
 import reactor.core.publisher.Mono
-import java.util.*
+import java.util.UUID
 
 /**
  * 이 필터를 webClient에 등록하면 trace logging 을 할 수 있다.
@@ -22,25 +26,11 @@ import java.util.*
 class TracerExchangeFilter(
     private val tracerLogger: TracerLogger,
     private val tracerWebClientContext: TracerWebClientContext
-): ExchangeFilterFunction {
+) : ExchangeFilterFunction {
 
-//    companion object {
-//        private val traceDataCreatorRegistry = TraceDataCreatorRegistry.getInstance()
-//    }
-
-    /**
-     *
-     */
     override fun filter(request: ClientRequest, next: ExchangeFunction): Mono<ClientResponse> {
         val startedTime = System.currentTimeMillis()
-        val connectId = if (tracerLogger.isDebugDetailEnabled()) {
-            UUID.randomUUID().toString().substring(0, 10)
-        } else {
-            null
-        }
 
-//        return Mono.subscriberContext()
-//            .flatMap { context ->
         return Mono.deferContextual { contextView ->
             val traceSpanId = contextView.getOrDefault<EachRequestContext>(TracerContext.ATTR_REQUEST_CONTEXT, null)
                 ?.let { requestContext ->
@@ -51,103 +41,204 @@ class TracerExchangeFilter(
                     requestContext.traceSpanId
                 }
 
+            val requestLoggingEnabled = tracerWebClientContext.shouldTraceRequest(request)
+            val responseLoggingEnabled = tracerWebClientContext.shouldTraceResponse(request)
+            if (requestLoggingEnabled.not() && responseLoggingEnabled.not()) {
+                return@deferContextual next.exchange(request)
+            }
+
+            val connectId = if (tracerLogger.isDebugDetailEnabled()) {
+                UUID.randomUUID().toString().substring(0, 10)
+            } else {
+                null
+            }
+
             lateinit var responseAndBodyHolder: ClientResponseAndBodyHolder
             val requestAndBodyHolder = ClientRequestAndBodyHolder(
                 request,
                 traceSpanId,
-                tracerWebClientContext.traceRequestBody,
+                tracerWebClientContext.traceRequestBody && requestLoggingEnabled,
                 tracerWebClientContext.maxPayloadLength
             )
+
             next.exchange(requestAndBodyHolder.clientRequest)
                 .map { response ->
                     responseAndBodyHolder = ClientResponseAndBodyHolder(
                         response,
-                        tracerWebClientContext.traceResponseBody,
+                        tracerWebClientContext.traceResponseBody && responseLoggingEnabled,
                         tracerWebClientContext.maxPayloadLength
                     )
                     responseAndBodyHolder.onResponseBodyReadComplate = {
-                        if (tracerLogger.isInforEnabled()) {
-                            val httpLog = createHttpLog(startedTime, requestAndBodyHolder, responseAndBodyHolder)
-                            tracerLogger.infor(
-                                httpLog,
-                                "HTTP ${httpLog.method}: ${httpLog.url} ${httpLog.status}",
-                                EachConnectContext(request, response),
-                                traceSpanId,
-                                connectId
-                            )
-
-                            detailLogging(traceSpanId, connectId, httpLog)
-                        }
+                        emitRequestLog(
+                            startedTime = startedTime,
+                            requestAndBodyHolder = requestAndBodyHolder,
+                            responseAndBodyHolder = responseAndBodyHolder,
+                            traceSpanId = traceSpanId,
+                            connectId = connectId,
+                            requestLoggingEnabled = requestLoggingEnabled
+                        )
+                        emitResponseLog(
+                            startedTime = startedTime,
+                            request = request,
+                            response = response,
+                            requestAndBodyHolder = requestAndBodyHolder,
+                            responseAndBodyHolder = responseAndBodyHolder,
+                            traceSpanId = traceSpanId,
+                            connectId = connectId,
+                            responseLoggingEnabled = responseLoggingEnabled
+                        )
                     }
 
                     responseAndBodyHolder.clientResponse
                 }
-//                .doOnSuccess { response ->
-//                    if (tracerLogger.isInfoEnabled()) {
-//                        tracerLogger.info(
-//                            traceSpanId,
-//                            createHttpLog(startedTime, requestAndBodyHolder, responseAndBodyHolder),
-//                            traceDataCreatorRegistry.traceLogType(DefinedTraceLogType.CONNECT)
-//                                .create(DefinedProtocolType.HTTP,  EachConnectContext(request, response)),
-//                            "HTTP send: ${request.method()} ${request.url()} ${response.statusCode()}"
-//                        )
-//                    }
-//                }
                 .doOnError { error ->
-                    val httpLog = createHttpLog(startedTime, requestAndBodyHolder, null, error)
-                    tracerLogger.error(
-                        httpLog,
-                        "HTTP ${request.method()}: ${request.url()}",
-                        error,
-                        EachConnectContext(request, null, error),
-                        traceSpanId,
+                    emitRequestLog(
+                        startedTime = startedTime,
+                        requestAndBodyHolder = requestAndBodyHolder,
+                        responseAndBodyHolder = null,
+                        traceSpanId = traceSpanId,
+                        connectId = connectId,
+                        requestLoggingEnabled = requestLoggingEnabled
                     )
-
-                    detailLogging(traceSpanId, connectId, httpLog)
+                    emitResponseErrorLog(
+                        startedTime = startedTime,
+                        request = request,
+                        requestAndBodyHolder = requestAndBodyHolder,
+                        traceSpanId = traceSpanId,
+                        connectId = connectId,
+                        responseLoggingEnabled = responseLoggingEnabled,
+                        error = error
+                    )
                 }
         }
     }
 
-    private fun detailLogging(
+    private fun emitRequestLog(
+        startedTime: Long,
+        requestAndBodyHolder: ClientRequestAndBodyHolder,
+        responseAndBodyHolder: ClientResponseAndBodyHolder?,
+        traceSpanId: TraceSpanId?,
+        connectId: String?,
+        requestLoggingEnabled: Boolean
+    ) {
+        if (requestLoggingEnabled.not() || tracerLogger.isInforEnabled().not()) {
+            return
+        }
+
+        val httpLog = createRequestHttpLog(startedTime, requestAndBodyHolder)
+        tracerLogger.infor(
+            httpLog,
+            "HTTP request: ${httpLog.method} ${httpLog.url}",
+            EachConnectContext(requestAndBodyHolder.clientRequest, responseAndBodyHolder?.clientResponse),
+            traceSpanId,
+            connectId
+        )
+
+        emitRequestDetailLog(traceSpanId, connectId, httpLog)
+    }
+
+    private fun emitResponseLog(
+        startedTime: Long,
+        request: ClientRequest,
+        response: ClientResponse,
+        requestAndBodyHolder: ClientRequestAndBodyHolder,
+        responseAndBodyHolder: ClientResponseAndBodyHolder,
+        traceSpanId: TraceSpanId?,
+        connectId: String?,
+        responseLoggingEnabled: Boolean
+    ) {
+        if (responseLoggingEnabled.not() || tracerLogger.isInforEnabled().not()) {
+            return
+        }
+
+        val httpLog = createResponseHttpLog(startedTime, requestAndBodyHolder, responseAndBodyHolder)
+        tracerLogger.infor(
+            httpLog,
+            "HTTP response: ${httpLog.method} ${httpLog.url} ${httpLog.status}",
+            EachConnectContext(request, response),
+            traceSpanId,
+            connectId
+        )
+
+        emitResponseDetailLog(traceSpanId, connectId, httpLog)
+    }
+
+    private fun emitResponseErrorLog(
+        startedTime: Long,
+        request: ClientRequest,
+        requestAndBodyHolder: ClientRequestAndBodyHolder,
+        traceSpanId: TraceSpanId?,
+        connectId: String?,
+        responseLoggingEnabled: Boolean,
+        error: Throwable
+    ) {
+        if (responseLoggingEnabled.not()) {
+            return
+        }
+
+        val httpLog = createResponseHttpLog(startedTime, requestAndBodyHolder, null, error)
+        tracerLogger.error(
+            httpLog,
+            "HTTP response: ${request.method()} ${request.url()}",
+            error,
+            EachConnectContext(request, null, error),
+            traceSpanId,
+            connectId
+        )
+
+        emitResponseDetailLog(traceSpanId, connectId, httpLog)
+    }
+
+    private fun emitRequestDetailLog(
         traceSpanId: TraceSpanId?,
         connectId: String?,
         httpLog: ConnectHttpLog
     ) {
-        if (tracerLogger.isDebugDetailEnabled()) {
-            connectId!!
-
-            val reqBody = if (tracerWebClientContext.traceRequestBody) {
-                httpLog.reqBody
-            } else {
-                "[warn: request body not tracing!!]"
-            }
-            val resBody = if (tracerWebClientContext.traceResponseBody) {
-                httpLog.resBody
-            } else {
-                "[warn: response body not tracing!!]"
-            }
-            tracerLogger.deDat(
-                httpLog,
-                "HTTP request body: $reqBody",
-                traceSpanId,
-                connectId
-            )
-            tracerLogger.deDat(
-                httpLog,
-                "HTTP response body: $resBody",
-                traceSpanId,
-                connectId
-            )
+        if (tracerLogger.isDebugDetailEnabled().not()) {
+            return
         }
+
+        connectId!!
+        val reqBody = if (tracerWebClientContext.traceRequestBody) {
+            httpLog.reqBody
+        } else {
+            "[warn: request body not tracing!!]"
+        }
+        tracerLogger.deDat(
+            httpLog,
+            "HTTP request body: $reqBody",
+            traceSpanId,
+            connectId
+        )
     }
 
-    private fun createHttpLog(
-        startedTime: Long,
-        requestAndBodyHolder: ClientRequestAndBodyHolder,
-        responseAndBodyHolder: ClientResponseAndBodyHolder?,
-        throwable: Throwable? = null
-    ): ConnectHttpLog {
+    private fun emitResponseDetailLog(
+        traceSpanId: TraceSpanId?,
+        connectId: String?,
+        httpLog: ConnectHttpLog
+    ) {
+        if (tracerLogger.isDebugDetailEnabled().not()) {
+            return
+        }
 
+        connectId!!
+        val resBody = if (tracerWebClientContext.traceResponseBody) {
+            httpLog.resBody
+        } else {
+            "[warn: response body not tracing!!]"
+        }
+        tracerLogger.deDat(
+            httpLog,
+            "HTTP response body: $resBody",
+            traceSpanId,
+            connectId
+        )
+    }
+
+    private fun createRequestHttpLog(
+        startedTime: Long,
+        requestAndBodyHolder: ClientRequestAndBodyHolder
+    ): ConnectHttpLog {
         return ConnectHttpLog(
             elapsedTime = System.currentTimeMillis() - startedTime,
             method = requestAndBodyHolder.clientRequest.method().name(),
@@ -162,7 +253,21 @@ class TracerExchangeFilter(
                 requestAndBodyHolder.genRequestBody()
             } else {
                 null
-            },
+            }
+        )
+    }
+
+    private fun createResponseHttpLog(
+        startedTime: Long,
+        requestAndBodyHolder: ClientRequestAndBodyHolder,
+        responseAndBodyHolder: ClientResponseAndBodyHolder?,
+        throwable: Throwable? = null
+    ): ConnectHttpLog {
+        return ConnectHttpLog(
+            elapsedTime = System.currentTimeMillis() - startedTime,
+            method = requestAndBodyHolder.clientRequest.method().name(),
+            url = requestAndBodyHolder.clientRequest.url().toString(),
+            path = requestAndBodyHolder.clientRequest.url().path,
             status = responseAndBodyHolder?.clientResponse?.statusCode()?.value(),
             resHeaders = if (tracerWebClientContext.traceResponseHeaders) {
                 responseAndBodyHolder?.clientResponse?.headers()?.asHttpHeaders()?.toMultiValueMap()

@@ -1,11 +1,12 @@
 package malibu.tracer.webmvc
 
-import malibu.tracer.TraceSpanId
-import malibu.tracer.TracerLogger
 import jakarta.servlet.DispatcherType
 import jakarta.servlet.FilterChain
+import malibu.tracer.TraceSpanId
+import malibu.tracer.TracerLogger
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
+import java.util.concurrent.atomic.AtomicBoolean
 
 class IncludeTypeFilterProcessor(
     private val tracerLogger: TracerLogger,
@@ -14,17 +15,29 @@ class IncludeTypeFilterProcessor(
 
     private val logger = KotlinLogging.logger {}
 
-
     fun doFilter(
         traceSpanId: TraceSpanId,
         servletExchange: ServletExchange,
-        filterChain: FilterChain
+        filterChain: FilterChain,
+        responseLoggingEnabled: Boolean
     ) {
         logger.debug { "start" }
 
         val request = servletExchange.request
         if (request.dispatcherType != DispatcherType.INCLUDE) {
             throw RuntimeException("dispatcherType이 INCLUDE가 아닙니다. dispatcherType: ${request.dispatcherType}")
+        }
+
+        if (responseLoggingEnabled.not()) {
+            return
+        }
+
+        val state = request.getAttribute(TracerFilter.ATTR_RESPONSE_LOGGED) as? AtomicBoolean
+            ?: AtomicBoolean(false).also {
+                request.setAttribute(TracerFilter.ATTR_RESPONSE_LOGGED, it)
+            }
+        if (state.compareAndSet(false, true).not()) {
+            return
         }
 
         if (tracerLogger.isInforEnabled()) {

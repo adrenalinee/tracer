@@ -10,12 +10,11 @@ import malibu.tracer.io.ResponseHttpLog
 import mu.KotlinLogging
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
-import org.springframework.util.AntPathMatcher
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.util.ContentCachingRequestWrapper
-import org.springframework.web.util.ContentCachingResponseWrapper
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 참고:
@@ -29,9 +28,13 @@ class TracerFilter(
     private val tracerWebMvcContext: TracerWebMvcContext
 ): OncePerRequestFilter() {
 
-    private val logger2 = KotlinLogging.logger {}
+    companion object {
+        internal const val ATTR_TRACE_REQUEST_LOGGING_ENABLED = "malibu.tracer.webmvc.traceRequestLoggingEnabled"
+        internal const val ATTR_TRACE_RESPONSE_LOGGING_ENABLED = "malibu.tracer.webmvc.traceResponseLoggingEnabled"
+        internal const val ATTR_RESPONSE_LOGGED = "malibu.tracer.webmvc.responseLogged"
+    }
 
-    private val antPathMatcher = AntPathMatcher()
+    private val logger2 = KotlinLogging.logger {}
 
     private val requestTypeFilterProcessor = RequestTypeFilterProcessor(tracerLogger, tracerWebMvcContext)
 
@@ -49,33 +52,17 @@ class TracerFilter(
 
     /**
      * 현재 요청에 대해서 filter를 적용할지 말지 결정.
-     * exclude path에 포함되어 있다면 로깅을 하지 않도록 처리.
+     * request/response predicate 모두 false 인 경우 필터 전체를 skip 한다.
      */
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        val path = when (request.dispatcherType) {
-            DispatcherType.REQUEST -> request.requestURI
-            DispatcherType.ERROR -> request.getAttribute("jakarta.servlet.error.request_uri") as String //forwarding 되기전 원래의 path..
-            DispatcherType.INCLUDE -> {
-//                for (attributeName in request.attributeNames) {
-//                    println("$attributeName: ${request.getAttribute(attributeName)}")
-//                }
-//
-//                println(request.requestURI)
-                request.requestURI
-            }
-            else -> {
-                logger2.warn { "tracer에서 지원하지 않는 request dispatcherType입니다. dispatcherType: ${request.dispatcherType}" }
-                return false
-            }
-        }
+        val (requestLoggingEnabled, responseLoggingEnabled) = getOrCreateLoggingState(request)
+        val path = request.getTraceRequestUriPath()
 
-        if (tracerWebMvcContext.excludePathPaterns.any { pathPattern ->
-                antPathMatcher.match(pathPattern, path)
-            }) {
-            logger2.debug { "exclude path matched! trace logging skip. path: $path" }
+        if (requestLoggingEnabled.not() && responseLoggingEnabled.not()) {
+            logger2.debug { "trace logging skipped by predicates. path: $path" }
 
-
-            request.setAttribute(TracerContext.ATTR_REQUEST_CONTEXT,
+            request.setAttribute(
+                TracerContext.ATTR_REQUEST_CONTEXT,
                 malibu.tracer.EachRequestContext(request.getUrl(), path, request.method, false, null)
             )
             return true
@@ -98,6 +85,7 @@ class TracerFilter(
             logger2.trace { "request.dispatcherType: ${request.dispatcherType}" }
         }
 
+        val (requestLoggingEnabled, responseLoggingEnabled) = getOrCreateLoggingState(request)
         val servletExchange = createServletExchange(request, response)
         try {
             when (request.dispatcherType) {
@@ -114,8 +102,17 @@ class TracerFilter(
                     RequestContextHolder.createFrom(requestContext) //request context 등록
                     request.setAttribute(TracerContext.ATTR_REQUEST_CONTEXT, requestContext)
                     request.setAttribute(ServerWebExchange.LOG_ID_ATTRIBUTE, traceSpanId.shortTraceId)
+                    if (request.getAttribute(ATTR_RESPONSE_LOGGED) == null) {
+                        request.setAttribute(ATTR_RESPONSE_LOGGED, AtomicBoolean(false))
+                    }
 
-                    requestTypeFilterProcessor.doFilter(traceSpanId, servletExchange, filterChain)
+                    requestTypeFilterProcessor.doFilter(
+                        traceSpanId = traceSpanId,
+                        servletExchange = servletExchange,
+                        filterChain = filterChain,
+                        requestLoggingEnabled = requestLoggingEnabled,
+                        responseLoggingEnabled = responseLoggingEnabled
+                    )
                 }
                 DispatcherType.INCLUDE -> {
 //                    filterChain.doFilter(request, response)
@@ -124,7 +121,12 @@ class TracerFilter(
                     val requestContext = request.getAttribute(TracerContext.ATTR_REQUEST_CONTEXT) as malibu.tracer.EachRequestContext
                     val traceSpanId = requestContext.traceSpanId!!
                     RequestContextHolder.createFrom(requestContext) //request context 등록
-                    includeTypeFilterProcessor.doFilter(traceSpanId, servletExchange, filterChain)
+                    includeTypeFilterProcessor.doFilter(
+                        traceSpanId = traceSpanId,
+                        servletExchange = servletExchange,
+                        filterChain = filterChain,
+                        responseLoggingEnabled = responseLoggingEnabled
+                    )
 //                    if (tracerLogger.isInforEnabled()) {
 //                        val responseHttpLog = createResponseLog(tracerWebMvcContext, servletExchange, null)
 //                        tracerLogger.infor(
@@ -151,7 +153,12 @@ class TracerFilter(
                     val traceSpanId = requestContext.traceSpanId!!
                     RequestContextHolder.createFrom(requestContext) //request context 등록
 
-                    errorTypeFilterProcessor.doFilter(traceSpanId, servletExchange, filterChain)
+                    errorTypeFilterProcessor.doFilter(
+                        traceSpanId = traceSpanId,
+                        servletExchange = servletExchange,
+                        filterChain = filterChain,
+                        responseLoggingEnabled = responseLoggingEnabled
+                    )
                 }
                 else -> {
                     logger2.warn { "tracer에서 지원하지 않는 request dispatcherType입니다. dispatcherType: ${request.dispatcherType}" }
@@ -172,7 +179,7 @@ class TracerFilter(
         }
 
         val arrangedResponse = if (tracerWebMvcContext.traceResponseBody) {
-            ContentCachingResponseWrapper(response/*, tracerWebMvcContext.maxPayloadLength*/)
+            TracingHttpServletResponseWrapper(response, tracerWebMvcContext.maxPayloadLength)
         } else {
             response
         }
@@ -191,6 +198,20 @@ class TracerFilter(
         }
 
         return TraceSpanId(traceId, shortTraceId, spanId)
+    }
+
+    private fun getOrCreateLoggingState(request: HttpServletRequest): Pair<Boolean, Boolean> {
+        val existingRequestLoggingEnabled = request.getAttribute(ATTR_TRACE_REQUEST_LOGGING_ENABLED) as Boolean?
+        val existingResponseLoggingEnabled = request.getAttribute(ATTR_TRACE_RESPONSE_LOGGING_ENABLED) as Boolean?
+        if (existingRequestLoggingEnabled != null && existingResponseLoggingEnabled != null) {
+            return existingRequestLoggingEnabled to existingResponseLoggingEnabled
+        }
+
+        val requestLoggingEnabled = tracerWebMvcContext.shouldTraceRequest(request)
+        val responseLoggingEnabled = tracerWebMvcContext.shouldTraceResponse(request)
+        request.setAttribute(ATTR_TRACE_REQUEST_LOGGING_ENABLED, requestLoggingEnabled)
+        request.setAttribute(ATTR_TRACE_RESPONSE_LOGGING_ENABLED, responseLoggingEnabled)
+        return requestLoggingEnabled to responseLoggingEnabled
     }
 }
 
@@ -238,7 +259,8 @@ fun createResponseLog(
     throwable: Throwable?,
     method: String? = null,
     path: String? = null,
-    url: String? = null
+    url: String? = null,
+    body: String? = if (tracerWebMvcContext.traceResponseBody) servletExchange.genResponseBody() else null
 ): ResponseHttpLog {
     return ResponseHttpLog(
         method = method ?: servletExchange.request.method.toString(),
@@ -257,7 +279,7 @@ fun createResponseLog(
         } else {
             null
         },
-        body = if (tracerWebMvcContext.traceResponseBody) { servletExchange.genResponseBody() } else { null },
+        body = body,
         error = if (tracerWebMvcContext.tracedError) {
             throwable?.traceToString()
         } else {

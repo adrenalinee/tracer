@@ -45,6 +45,29 @@ class MyTracerConfiguration: TracerWebfluxConfigurer {
 - **traceRequestHeaders**: rquest header 를 출력할지 결정, **type**: boolean, **default**: false
 - **traceResponseHeaders**: response header 를 출력할지 결정, **type**: boolean, **default**: false
 - **excludePathPaterns**: trace log 를 출력하지 않을 request path 를 등록, **type**: array(string), **default**: []
+- **requestTracePredicate**: request 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(ServerHttpRequest) -> Boolean`, **default**: 항상 true
+- **responseTracePredicate**: response 로그를 출력할지 request 기반으로 판단하는 조건, **type**: `(ServerHttpRequest) -> Boolean`, **default**: 항상 true
+
+```kotlin
+@Component
+class MyTracerConfiguration: TracerWebfluxConfigurer {
+    override fun configureTracerWebflux(tracerWebfluxContext: TracerWebfluxContextApplyer) {
+        tracerWebfluxContext
+            .addRequestTracePredicate { request ->
+                request.uri.path != "/health"
+            }
+            .addResponseTracePredicate(
+                TracerWebfluxLoggingPredicates.excludePathPattern("/api/large-response")
+            )
+    }
+}
+```
+
+기존과 동일하게 path pattern 기반으로 request/response 둘 다 제외하고 싶다면 아래처럼 사용할 수 있습니다.
+
+```kotlin
+tracerWebfluxContext.addExcludePathPatterns("/internal/**")
+```
 
 
 

@@ -1,5 +1,7 @@
 package malibu.tracer.webmvc
 
+import jakarta.servlet.http.HttpServletRequest
+
 class TracerWebMvcContext {
 
     var traceRequestBody: Boolean = false
@@ -35,4 +37,16 @@ class TracerWebMvcContext {
      * ant path 스타일
      */
     var excludePathPaterns = mutableListOf<String>()
+
+    internal val requestTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
+
+    internal val responseTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
+
+    fun shouldTraceRequest(request: HttpServletRequest): Boolean {
+        return requestTracePredicates.all { it.test(request) }
+    }
+
+    fun shouldTraceResponse(request: HttpServletRequest): Boolean {
+        return responseTracePredicates.all { it.test(request) }
+    }
 }
