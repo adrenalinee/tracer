@@ -5,7 +5,7 @@ import malibu.tracer.TracerLogger
 import malibu.tracer.io.TraceLog
 import malibu.tracer.test.controller.Step2LoggerTestController
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
-import malibu.tracer.webmvc.TracerWebMvcContextApplyer
+import malibu.tracer.webmvc.TracerWebMvcContextApplier
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -29,7 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 class Step2LoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplier) {
             context.traceResponseBody = true
         }
     }

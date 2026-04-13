@@ -6,7 +6,7 @@ import malibu.tracer.io.RequestHttpLog
 import malibu.tracer.io.ResponseHttpLog
 import malibu.tracer.io.TraceLog
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
-import malibu.tracer.webmvc.TracerWebMvcContextApplyer
+import malibu.tracer.webmvc.TracerWebMvcContextApplier
 import malibu.tracer.webmvc.TracerWebMvcLoggingPredicates
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -36,7 +36,7 @@ import java.net.URI
 class SelectiveLoggingTest {
 
     open class SelectiveLoggingConfiguration : TracerWebMvcConfigurer {
-        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplier) {
             context.traceRequestBody = true
             context.traceResponseBody = true
             context.addRequestTracePredicate(

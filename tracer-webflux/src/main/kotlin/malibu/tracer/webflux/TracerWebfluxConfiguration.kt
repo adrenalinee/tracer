@@ -28,7 +28,7 @@ open class TracerWebfluxConfiguration(
         if (tracerWebfluxConfigurers.isNotEmpty()) {
             tracerWebfluxConfigurers.forEach { tracerConfigurer ->
                 logger.info { "TRACER: found TracerWebfluxConfigurer: $tracerConfigurer" }
-                val tracerWebFluxContextApplyer = TracerWebfluxContextApplyer()
+                val tracerWebFluxContextApplyer = TracerWebfluxContextApplier()
                 tracerConfigurer.configureTracerWebflux(tracerWebFluxContextApplyer)
 
                 tracerWebFluxContextApplyer.apply(tracerWebFluxContext)

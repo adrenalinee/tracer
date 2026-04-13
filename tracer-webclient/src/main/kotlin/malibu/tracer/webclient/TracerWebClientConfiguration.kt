@@ -24,7 +24,7 @@ open class TracerWebClientConfiguration(
     fun initialize() {
         tracerWebClientConfigurers.forEach { webClientConfigurer ->
             logger.info { "TRACER: found TracerWebClientConfigurer: $webClientConfigurer" }
-            val webClientContextApplyer = TracerWebClientContextApplyer()
+            val webClientContextApplyer = TracerWebClientContextApplier()
             webClientConfigurer.configureTracerWebClient(webClientContextApplyer)
             webClientContextApplyer.apply(tracerWebClientContext)
         }

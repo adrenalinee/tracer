@@ -6,7 +6,7 @@ import malibu.tracer.TracerLogger
 import malibu.tracer.io.TraceLog
 import malibu.tracer.test.controller.Step3LoggerTestController
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
-import malibu.tracer.webmvc.TracerWebMvcContextApplyer
+import malibu.tracer.webmvc.TracerWebMvcContextApplier
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ import java.net.URI
 class Step3UnhandledExeptionLoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplier) {
             context.traceRequestBody = true
             context.traceResponseBody = true
         }
