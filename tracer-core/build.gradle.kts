@@ -8,6 +8,7 @@ dependencies {
 
 //    implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("tools.jackson.core:jackson-databind")
+선    implementation("com.google.cloud:spring-cloud-gcp-logging")
 
     compileOnly("io.projectreactor:reactor-core")
 }

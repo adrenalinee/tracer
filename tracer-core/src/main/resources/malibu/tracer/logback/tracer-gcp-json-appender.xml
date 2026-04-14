@@ -5,20 +5,10 @@
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="com.google.cloud.spring.logging.StackdriverJsonLayout">
                 <projectId>${projectId}</projectId>
-
-                <!--<traceIdMdcField>traceId</traceIdMdcField>-->
-                <!--<spanIdMdcField>spanId</spanIdMdcField>-->
-                <!--<includeTraceId>true</includeTraceId>-->
-                <!--<includeSpanId>true</includeSpanId>-->
-                <!--<includeLevel>true</includeLevel>-->
-                <!--<includeThreadName>true</includeThreadName>-->
-                <!--<includeMDC>true</includeMDC>-->
-                <!--<includeLoggerName>true</includeLoggerName>-->
-                <!--<includeFormattedMessage>true</includeFormattedMessage>-->
-                <!--<includeExceptionInMessage>true</includeExceptionInMessage>-->
-                <!--<includeContextName>true</includeContextName>-->
-                <!--<includeMessage>false</includeMessage>-->
-                <!--<includeException>false</includeException>-->
+                <includeTraceId>true</includeTraceId>
+                <includeSpanId>true</includeSpanId>
+                <includeLevel>true</includeLevel>
+                <loggingEventEnhancer>malibu.tracer.TraceLogstashJsonEnhancer</loggingEventEnhancer>
             </layout>
         </encoder>
     </appender>
