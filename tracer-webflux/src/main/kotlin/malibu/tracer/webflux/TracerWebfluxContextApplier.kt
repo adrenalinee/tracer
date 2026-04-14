@@ -2,7 +2,7 @@ package malibu.tracer.webflux
 
 import org.springframework.http.server.reactive.ServerHttpRequest
 
-class TracerWebfluxContextApplyer(
+class TracerWebfluxContextApplier(
     var traceRequestBody: Boolean? = null,
     var traceResponseBody: Boolean? = null,
     var traceRequestHeaders: Boolean? = null,
@@ -32,37 +32,37 @@ class TracerWebfluxContextApplyer(
     /**
      * @param pathPattern - ant path pattern
      */
-    fun addExcludePathPatterns(pathPattern: String): TracerWebfluxContextApplyer {
+    fun addExcludePathPatterns(pathPattern: String): TracerWebfluxContextApplier {
         excludePathPatterns.add(pathPattern)
         addTracePredicate(TracerWebfluxLoggingPredicates.excludePathPattern(pathPattern))
         return this
     }
 
-    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplier {
         addRequestTracePredicate(predicate)
         addResponseTracePredicate(predicate)
         return this
     }
 
-    fun addTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+    fun addTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplier {
         return addTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplier {
         requestTracePredicates.add(predicate)
         return this
     }
 
-    fun addRequestTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+    fun addRequestTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplier {
         return addRequestTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplyer {
+    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebfluxContextApplier {
         responseTracePredicates.add(predicate)
         return this
     }
 
-    fun addResponseTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplyer {
+    fun addResponseTracePredicate(predicate: (ServerHttpRequest) -> Boolean): TracerWebfluxContextApplier {
         return addResponseTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 

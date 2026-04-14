@@ -1,6 +1,5 @@
 plugins {
     id("java-library") //apply(false)
-//    id("maven-publish") //apply(false)
     `maven-publish`
 
     id("io.spring.dependency-management") version("1.1.7") //apply(false)
@@ -19,7 +18,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
 
     group = "malibu.tracer"
-    version = "15.0"
+    version = "16.0-SNAPSHOT"
 
     java {
         toolchain {

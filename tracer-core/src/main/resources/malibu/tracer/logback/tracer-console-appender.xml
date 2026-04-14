@@ -3,7 +3,7 @@
 <included>
     <appender name="TRACER_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-            <jsonFactoryDecorator class="malibu.tracer.logstash.TracerJsonFactoryDecorator"/>
+<!--            <jsonFactoryDecorator class="malibu.tracer.logstash.TracerJsonFactoryDecorator"/>-->
             <providers>
                 <sequence/>
                 <timestamp/>

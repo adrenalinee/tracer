@@ -2,5 +2,5 @@ package malibu.tracer.webflux
 
 interface TracerWebfluxConfigurer {
 
-    fun configureTracerWebflux(context: TracerWebfluxContextApplyer)
+    fun configureTracerWebflux(context: TracerWebfluxContextApplier)
 }
