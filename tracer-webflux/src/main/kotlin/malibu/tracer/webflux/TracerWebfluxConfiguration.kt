@@ -8,6 +8,8 @@ import mu.KotlinLogging
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.http.server.reactive.HttpHandler
+import org.springframework.http.server.reactive.HttpHandlerDecoratorFactory
 
 @Import(TracerBaseConfiguration::class)
 @Configuration
@@ -39,6 +41,18 @@ open class TracerWebfluxConfiguration(
     @Bean
     open fun tracerWebFilter(): TracerWebFilter {
         return TracerWebFilter(tracerLogger, tracerContext, tracerWebFluxContext)
+    }
+
+    @Bean
+    open fun tracerHttpHandlerDecoratorFactory(): HttpHandlerDecoratorFactory {
+        return HttpHandlerDecoratorFactory { httpHandler ->
+            HttpHandler { request, response ->
+                httpHandler.handle(
+                    request,
+                    TracingServerHttpResponseDecorator(response, tracerWebFluxContext.maxPayloadLength)
+                )
+            }
+        }
     }
 
     @Bean

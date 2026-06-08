@@ -2,7 +2,6 @@ package malibu.tracer.webflux
 
 import malibu.tracer.io.LimitedByteArrayOutputStream
 import malibu.tracer.io.toLimitedString
-import org.reactivestreams.Publisher
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator
@@ -11,9 +10,7 @@ import org.springframework.http.server.reactive.ServerHttpResponseDecorator
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.ServerWebExchangeDecorator
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import java.nio.channels.Channels
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * request 당 하나씩 생성됨.
@@ -53,14 +50,6 @@ class TracerServerWebExchange(
 
     private val requestBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
 
-    /**
-     * 복사된 response body
-     */
-    private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
-
-    private val responseWriteCompleted = AtomicBoolean(false)
-
-
     private val traceRequestBody = tracerWebfluxContext.traceRequestBody && requestLoggingEnabled
 
     private val decoratedRequest: ServerHttpRequest = if (traceRequestBody &&
@@ -85,37 +74,13 @@ class TracerServerWebExchange(
         exchange.request
     }
 
-    private val traceResponseBody = tracerWebfluxContext.traceResponseBody && responseLoggingEnabled
-
-    private val decoratedResponse: ServerHttpResponse = object : ServerHttpResponseDecorator(exchange.response) {
-        override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
-            return delegate.writeWith(responseBodyFn(body))
-                .doFinally {
-                    notifyResponseWriteComplete()
-                }
-        }
-
-        override fun writeAndFlushWith(body: Publisher<out Publisher<out DataBuffer>>): Mono<Void> {
-            return delegate.writeAndFlushWith(
-                Flux.from(body)
-                    .map { innerBody ->
-                        Flux.from(innerBody)
-                            .doOnNext { partialBody ->
-                                if (traceResponseBody) {
-                                    copyResponseBody(partialBody)
-                                }
-                            }
-                    }
-            ).doFinally {
-                notifyResponseWriteComplete()
-            }
-        }
-
-        override fun setComplete(): Mono<Void> {
-            return delegate.setComplete()
-                .doFinally {
-                    notifyResponseWriteComplete()
-                }
+    private val decoratedResponse: TracingServerHttpResponseDecorator = (
+        findTracingResponse(exchange.response)
+            ?: TracingServerHttpResponseDecorator(exchange.response, maxPayloadLength)
+        ).also { response ->
+        response.traceResponseBody = tracerWebfluxContext.traceResponseBody && responseLoggingEnabled
+        response.onResponseWriteComplete = {
+            onResponseWriteComplete()
         }
     }
 
@@ -133,28 +98,6 @@ class TracerServerWebExchange(
 //                onRequestBodyReadComplete()
 //            }
 //    }
-
-    /**
-     * response body 복사
-     */
-    private val responseBodyFn: (Publisher<out DataBuffer>) -> Publisher<out DataBuffer> = { body ->
-        Flux.from(body)
-            .doOnNext { partialBody ->
-                if (traceResponseBody) {
-                    copyResponseBody(partialBody)
-                }
-            }
-    }
-
-    private fun copyResponseBody(partialBody: DataBuffer) {
-        Channels.newChannel(responseBodyBaos).write(partialBody.asByteBuffer().asReadOnlyBuffer())
-    }
-
-    private fun notifyResponseWriteComplete() {
-        if (responseWriteCompleted.compareAndSet(false, true)) {
-            onResponseWriteComplete()
-        }
-    }
 
     /**
      *
@@ -188,12 +131,7 @@ class TracerServerWebExchange(
      * 주의: 호출할때마다 body byte array 를 String 으로 변환하는 작업이 발생합니다.
      */
     fun genResponseBody(): String? {
-        return if (responseBodyBaos.size() <= 0) {
-            null
-        } else {
-            responseBodyBaos.toByteArray()
-                .toLimitedString(maxPayloadLength, truncated = responseBodyBaos.isTruncated())
-        }
+        return decoratedResponse.genResponseBody()
     }
 
     /**
@@ -207,6 +145,14 @@ class TracerServerWebExchange(
      * response body 의 길이
      */
     fun getResponseBodySize(): Int {
-        return responseBodyBaos.size()
+        return decoratedResponse.getResponseBodySize()
+    }
+
+    private tailrec fun findTracingResponse(response: ServerHttpResponse): TracingServerHttpResponseDecorator? {
+        return when (response) {
+            is TracingServerHttpResponseDecorator -> response
+            is ServerHttpResponseDecorator -> findTracingResponse(response.delegate)
+            else -> null
+        }
     }
 }
