@@ -1,8 +1,11 @@
 package malibu.tracer.test.controller
 
+import jakarta.servlet.http.HttpServletResponse
 import malibu.tracer.test.exception.HandingException
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/step3")
@@ -87,6 +90,16 @@ class Step3LoggerTestController {
     @DeleteMapping("/unhandledError")
     fun delete500Test(@RequestBody reqBody: String?): String {
         throw RuntimeException()
+    }
+
+    @GetMapping("/responseStatusException")
+    fun responseStatusException(): String {
+        throw ResponseStatusException(HttpStatus.BAD_REQUEST, "response status error")
+    }
+
+    @GetMapping("/sendError")
+    fun sendError(response: HttpServletResponse) {
+        response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value(), "send error")
     }
 
     @ExceptionHandler(HandingException::class)

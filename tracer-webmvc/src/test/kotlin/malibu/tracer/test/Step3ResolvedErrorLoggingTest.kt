@@ -7,7 +7,6 @@ import malibu.tracer.io.TraceLog
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
 import malibu.tracer.webmvc.TracerWebMvcContextApplier
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.any
 import org.mockito.Mockito.times
@@ -23,10 +22,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 @SpringBootTest(
     classes = [
         LoggerTestConfiguration::class,
-        Step0NotFoundLoggingTest.ResponseBodyTracedConfiguration::class
+        Step3ResolvedErrorLoggingTest.ResponseBodyTracedConfiguration::class
     ],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class Step0NotFoundLoggingTest {
+class Step3ResolvedErrorLoggingTest {
 
     open class ResponseBodyTracedConfiguration: TracerWebMvcConfigurer {
         override fun configureTracerWebMvc(context: TracerWebMvcContextApplier) {
@@ -40,48 +39,30 @@ class Step0NotFoundLoggingTest {
     @MockitoBean
     lateinit var tracerLogger: TracerLogger
 
-    private val path = "/undefinedPath"
-
     @Test
-    fun getTest() {
-        doTest(HttpMethod.GET)
+    fun responseStatusExceptionShouldLogGeneratedErrorBody() {
+        doTest("/step3/responseStatusException", HttpStatus.BAD_REQUEST)
     }
 
     @Test
-    fun postTest() {
-        doTest(HttpMethod.POST)
+    fun sendErrorShouldLogGeneratedErrorBody() {
+        doTest("/step3/sendError", HttpStatus.INTERNAL_SERVER_ERROR)
     }
 
-    @Disabled("testRestTemplate 이 patch method 처리하지 않음..")
-    @Test
-    fun patchTest() {
-        doTest(HttpMethod.PATCH)
-    }
-
-    @Test
-    fun putTest() {
-        doTest(HttpMethod.PUT)
-    }
-
-    @Test
-    fun deleteTest() {
-        doTest(HttpMethod.DELETE)
-    }
-
-    private fun doTest(method: HttpMethod) {
+    private fun doTest(path: String, status: HttpStatus) {
         given {
             tracerLogger.isInforEnabled()
         }.willReturn(true)
 
         val responseEntity = testRestTemplate.exchange(
             path,
-            method,
+            HttpMethod.GET,
             RequestEntity.EMPTY,
             String::class.java
         )
 
-        assertThat(responseEntity.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
-//        assertThat(responseEntity.body).isEqualTo(null)
+        assertThat(responseEntity.statusCode).isEqualTo(status)
+        assertThat(responseEntity.body).isNotBlank()
 
         val traceLogCaptor = argumentCaptor<TraceLog>()
         val logContextCaptor = nullableArgumentCaptor<Any>()
@@ -104,8 +85,8 @@ class Step0NotFoundLoggingTest {
             additionalLogId = any()
         )
 
-        assertRequestTraceLog(traceLogCaptor.firstValue, method, path, null)
-        assertResponseTraceLog(traceLogCaptor.secondValue, method, path, responseEntity.body, HttpStatus.NOT_FOUND)
+        assertRequestTraceLog(traceLogCaptor.firstValue, HttpMethod.GET, path, null)
+        assertResponseTraceLog(traceLogCaptor.secondValue, HttpMethod.GET, path, responseEntity.body, status)
         assertThat((traceLogCaptor.secondValue as ResponseHttpLog).body).isEqualTo(responseEntity.body)
         assertLogContext(logContextCaptor)
         assertTraceSpanId(traceSpanIdCaptor)

@@ -18,6 +18,7 @@ class TracingHttpServletResponseWrapper(
 
     private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
     private val responseCompleted = AtomicBoolean(false)
+    private val sendErrorCalled = AtomicBoolean(false)
 
     private var captureOutputStream: ServletOutputStream? = null
     private var captureWriter: PrintWriter? = null
@@ -48,6 +49,16 @@ class TracingHttpServletResponseWrapper(
         super.flushBuffer()
     }
 
+    override fun sendError(sc: Int) {
+        sendErrorCalled.set(true)
+        super.sendError(sc)
+    }
+
+    override fun sendError(sc: Int, msg: String?) {
+        sendErrorCalled.set(true)
+        super.sendError(sc, msg)
+    }
+
     fun genResponseBody(): String? {
         if (responseBodyBaos.size() <= 0) {
             return null
@@ -59,6 +70,10 @@ class TracingHttpServletResponseWrapper(
 
     fun getContentSize(): Int {
         return responseBodyBaos.size()
+    }
+
+    fun isSendErrorCalled(): Boolean {
+        return sendErrorCalled.get()
     }
 
     fun notifyResponseComplete() {
