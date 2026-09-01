@@ -7,6 +7,8 @@ plugins {
     kotlin("jvm") version("2.2.21") apply(false)
 }
 
+extra["springCloudGcpVersion"] = "8.0.1"
+
 tasks.named<Jar>("jar") {
     enabled = false
 }
@@ -43,11 +45,9 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
-        }
-
-        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.5")
             mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.1")
+            mavenBom("com.google.cloud:spring-cloud-gcp-dependencies:${property("springCloudGcpVersion")}")
         }
     }
 
