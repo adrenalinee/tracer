@@ -1,4 +1,4 @@
-package malibu.tracer
+package malibu.tracer.gcp
 
 import ch.qos.logback.classic.spi.ILoggingEvent
 import com.google.cloud.spring.logging.JsonLoggingEventEnhancer

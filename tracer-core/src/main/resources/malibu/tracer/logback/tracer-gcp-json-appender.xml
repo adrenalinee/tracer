@@ -8,7 +8,7 @@
                 <includeTraceId>true</includeTraceId>
                 <includeSpanId>true</includeSpanId>
                 <includeLevel>true</includeLevel>
-                <loggingEventEnhancer>malibu.tracer.TraceLogstashJsonEnhancer</loggingEventEnhancer>
+                <loggingEventEnhancer>malibu.tracer.gcp.TraceLogstashJsonEnhancer</loggingEventEnhancer>
             </layout>
         </encoder>
     </appender>
