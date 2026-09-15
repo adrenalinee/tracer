@@ -168,15 +168,15 @@ class TracerWebFilter(
                     exchange,
                     traceSpanId
                 )
+            }
 
-                if (tracerLogger.isDebugDetailEnabled()) {
-                    val body = if (tracerWebfluxContext.traceResponseBody) {
-                        responseHttpLog.body
-                    } else {
-                        "[warn: response body not tracing!!]"
-                    }
-                    tracerLogger.deDat(responseHttpLog, "HTTP response body: $body", traceSpanId)
+            if (tracerLogger.isDebugDetailEnabled()) {
+                val body = if (tracerWebfluxContext.traceResponseBody) {
+                    responseHttpLog.body
+                } else {
+                    "[warn: response body not tracing!!]"
                 }
+                tracerLogger.deDat(responseHttpLog, "HTTP response body: $body", traceSpanId)
             }
         }
     }

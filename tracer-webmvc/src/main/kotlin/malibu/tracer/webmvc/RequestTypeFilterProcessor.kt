@@ -56,7 +56,7 @@ class RequestTypeFilterProcessor(
             if (request.isAsyncStarted) {
                 registerAsyncResponseLogging(traceSpanId, servletExchange, responseLoggingEnabled)
             } else {
-                if (shouldLogResponse(request, responseLoggingEnabled)) {
+                if (shouldLogResponse(servletExchange, responseLoggingEnabled)) {
                     responseLogging(traceSpanId, servletExchange)
                 }
                 servletExchange.notifyResponseComplete()
@@ -129,7 +129,7 @@ class RequestTypeFilterProcessor(
         val request = servletExchange.request
         val listener = object : AsyncListener {
             override fun onComplete(event: AsyncEvent) {
-                if (shouldLogResponse(request, responseLoggingEnabled)) {
+                if (shouldLogResponse(servletExchange, responseLoggingEnabled)) {
                     responseLogging(traceSpanId, servletExchange)
                 }
                 servletExchange.notifyResponseComplete()
@@ -152,13 +152,18 @@ class RequestTypeFilterProcessor(
     }
 
     private fun shouldLogResponse(
-        request: jakarta.servlet.http.HttpServletRequest,
+        servletExchange: ServletExchange,
         responseLoggingEnabled: Boolean
     ): Boolean {
         if (responseLoggingEnabled.not()) {
             return false
         }
 
+        if (servletExchange.isSendErrorCalled()) {
+            return false
+        }
+
+        val request = servletExchange.request
         if (request.getAttributeOrNull<Any>(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE) is ResourceHttpRequestHandler) {
             return false
         }

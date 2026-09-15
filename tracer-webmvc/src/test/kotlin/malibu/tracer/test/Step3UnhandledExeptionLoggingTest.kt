@@ -3,10 +3,11 @@ package malibu.tracer.test
 import jakarta.servlet.ServletException
 import malibu.tracer.TraceSpanId
 import malibu.tracer.TracerLogger
+import malibu.tracer.io.ResponseHttpLog
 import malibu.tracer.io.TraceLog
 import malibu.tracer.test.controller.Step3LoggerTestController
 import malibu.tracer.webmvc.TracerWebMvcConfigurer
-import malibu.tracer.webmvc.TracerWebMvcContextApplyer
+import malibu.tracer.webmvc.TracerWebMvcContextApplier
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -31,7 +32,7 @@ import java.net.URI
 class Step3UnhandledExeptionLoggingTest {
 
     open class RequestBodyTracedConfiguration: TracerWebMvcConfigurer {
-        override fun configureTracerWebMvc(context: TracerWebMvcContextApplyer) {
+        override fun configureTracerWebMvc(context: TracerWebMvcContextApplier) {
             context.traceRequestBody = true
             context.traceResponseBody = true
         }
@@ -113,7 +114,8 @@ class Step3UnhandledExeptionLoggingTest {
         )
 
         assertRequestTraceLog(traceLogCaptor.firstValue, method, path, requestBody)
-        assertResponseTraceLog(traceLogCaptor.secondValue, method, path, null, HttpStatus.INTERNAL_SERVER_ERROR)
+        assertResponseTraceLog(traceLogCaptor.secondValue, method, path, responseEntity.body, HttpStatus.INTERNAL_SERVER_ERROR)
+        assertThat((traceLogCaptor.secondValue as ResponseHttpLog).body).isEqualTo(responseEntity.body)
         assertLogContext(logContextCaptor)
         assertTraceSpanId(traceSpanIdCaptor)
 

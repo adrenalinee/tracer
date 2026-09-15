@@ -87,6 +87,10 @@ class ServletExchange(
         }
     }
 
+    fun isSendErrorCalled(): Boolean {
+        return (response as? TracingHttpServletResponseWrapper)?.isSendErrorCalled() ?: false
+    }
+
     fun notifyResponseComplete() {
         (response as? TracingHttpServletResponseWrapper)?.notifyResponseComplete()
     }

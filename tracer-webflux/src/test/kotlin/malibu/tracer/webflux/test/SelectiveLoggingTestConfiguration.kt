@@ -15,7 +15,7 @@ open class SelectiveLoggingTestConfiguration {
     @Bean
     open fun tracerWebfluxConfigurer(): TracerWebfluxConfigurer {
         return object : TracerWebfluxConfigurer {
-            override fun configureTracerWebflux(context: malibu.tracer.webflux.TracerWebfluxContextApplyer) {
+            override fun configureTracerWebflux(context: malibu.tracer.webflux.TracerWebfluxContextApplier) {
                 context.traceRequestBody = true
                 context.traceResponseBody = true
                 context.addRequestTracePredicate(

@@ -2,7 +2,7 @@ package malibu.tracer.webclient.test
 
 import malibu.tracer.webclient.TracerWebClientConfiguration
 import malibu.tracer.webclient.TracerWebClientConfigurer
-import malibu.tracer.webclient.TracerWebClientContextApplyer
+import malibu.tracer.webclient.TracerWebClientContextApplier
 import malibu.tracer.webclient.TracerWebClientLoggingPredicates
 import malibu.tracer.webclient.test.controller.SelectiveLoggingTestController
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -16,7 +16,7 @@ open class SelectiveLoggingTestConfiguration {
     @Bean
     open fun tracerWebClientConfigurer(): TracerWebClientConfigurer {
         return object : TracerWebClientConfigurer {
-            override fun configureTracerWebClient(context: TracerWebClientContextApplyer) {
+            override fun configureTracerWebClient(context: TracerWebClientContextApplier) {
                 context.traceRequestBody = true
                 context.traceResponseBody = true
                 context.addRequestTracePredicate(

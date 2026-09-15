@@ -18,9 +18,21 @@ class TracingHttpServletResponseWrapper(
 
     private val responseBodyBaos = LimitedByteArrayOutputStream(maxPayloadLength)
     private val responseCompleted = AtomicBoolean(false)
+    private val sendErrorCalled = AtomicBoolean(false)
 
     private var captureOutputStream: ServletOutputStream? = null
     private var captureWriter: PrintWriter? = null
+    private var explicitCharsetName: String? = null
+
+    override fun setCharacterEncoding(charset: String) {
+        explicitCharsetName = charset
+        super.setCharacterEncoding(charset)
+    }
+
+    override fun setContentType(type: String?) {
+        super.setContentType(type)
+        type?.let(::extractCharset)?.let { explicitCharsetName = it }
+    }
 
     override fun getOutputStream(): ServletOutputStream {
         if (captureWriter != null) {
@@ -48,6 +60,16 @@ class TracingHttpServletResponseWrapper(
         super.flushBuffer()
     }
 
+    override fun sendError(sc: Int) {
+        sendErrorCalled.set(true)
+        super.sendError(sc)
+    }
+
+    override fun sendError(sc: Int, msg: String?) {
+        sendErrorCalled.set(true)
+        super.sendError(sc, msg)
+    }
+
     fun genResponseBody(): String? {
         if (responseBodyBaos.size() <= 0) {
             return null
@@ -59,6 +81,10 @@ class TracingHttpServletResponseWrapper(
 
     fun getContentSize(): Int {
         return responseBodyBaos.size()
+    }
+
+    fun isSendErrorCalled(): Boolean {
+        return sendErrorCalled.get()
     }
 
     fun notifyResponseComplete() {
@@ -79,8 +105,17 @@ class TracingHttpServletResponseWrapper(
     }
 
     private fun currentCharset(): Charset {
-        val charsetName = characterEncoding?.takeIf { it.isNotBlank() } ?: Charsets.UTF_8.name()
+        val charsetName = explicitCharsetName?.takeIf { it.isNotBlank() } ?: Charsets.UTF_8.name()
         return Charset.forName(charsetName)
+    }
+
+    private fun extractCharset(contentType: String): String? {
+        return contentType.split(";")
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("charset=", ignoreCase = true) }
+            ?.substringAfter("=")
+            ?.trim('"')
+            ?.takeIf { it.isNotBlank() }
     }
 
     private inner class TeeServletOutputStream(

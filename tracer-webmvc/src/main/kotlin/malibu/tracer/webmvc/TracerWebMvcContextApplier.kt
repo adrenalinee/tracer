@@ -2,7 +2,7 @@ package malibu.tracer.webmvc
 
 import jakarta.servlet.http.HttpServletRequest
 
-class TracerWebMvcContextApplyer(
+class TracerWebMvcContextApplier(
     var traceRequestBody: Boolean? = null,
     var traceResponseBody: Boolean? = null,
     var traceRequestHeaders: Boolean? = null,
@@ -24,49 +24,49 @@ class TracerWebMvcContextApplyer(
     var tracedError: Boolean? = null
 ) {
 
-    private val excludePathPaterns = mutableListOf<String>()
+    private val excludePathPatterns = mutableListOf<String>()
     private val requestTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
     private val responseTracePredicates = mutableListOf<TraceHttpRequestPredicate>()
 
     /**
      * @param pathPattern - ant path pattern
      */
-    fun addExcludePathPatterns(pathPattern: String): TracerWebMvcContextApplyer {
-        excludePathPaterns.add(pathPattern)
+    fun addExcludePathPatterns(pathPattern: String): TracerWebMvcContextApplier {
+        excludePathPatterns.add(pathPattern)
         addTracePredicate(TracerWebMvcLoggingPredicates.excludePathPattern(pathPattern))
         return this
     }
 
     @Deprecated("Use addExcludePathPatterns(pathPattern) instead.")
-    fun addExcludePathPaterns(pathPattern: String): TracerWebMvcContextApplyer {
+    fun addExcludePathPaterns(pathPattern: String): TracerWebMvcContextApplier {
         return addExcludePathPatterns(pathPattern)
     }
 
-    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplyer {
+    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplier {
         addRequestTracePredicate(predicate)
         addResponseTracePredicate(predicate)
         return this
     }
 
-    fun addTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplyer {
+    fun addTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplier {
         return addTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplyer {
+    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplier {
         requestTracePredicates.add(predicate)
         return this
     }
 
-    fun addRequestTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplyer {
+    fun addRequestTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplier {
         return addRequestTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplyer {
+    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebMvcContextApplier {
         responseTracePredicates.add(predicate)
         return this
     }
 
-    fun addResponseTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplyer {
+    fun addResponseTracePredicate(predicate: (HttpServletRequest) -> Boolean): TracerWebMvcContextApplier {
         return addResponseTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
@@ -81,7 +81,7 @@ class TracerWebMvcContextApplyer(
         mergedHeader?.also { tracerWebMvcContext.mergedHeader = it }
         tracedError?.also { tracerWebMvcContext.tracedError = it }
 
-        excludePathPaterns.forEach { tracerWebMvcContext.excludePathPaterns.add(it) }
+        excludePathPatterns.forEach { tracerWebMvcContext.excludePathPaterns.add(it) }
         tracerWebMvcContext.requestTracePredicates.addAll(requestTracePredicates)
         tracerWebMvcContext.responseTracePredicates.addAll(responseTracePredicates)
     }

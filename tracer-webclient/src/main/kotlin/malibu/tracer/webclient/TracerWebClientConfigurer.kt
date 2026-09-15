@@ -2,5 +2,5 @@ package malibu.tracer.webclient
 
 interface TracerWebClientConfigurer {
 
-    fun configureTracerWebClient(context: TracerWebClientContextApplyer)
+    fun configureTracerWebClient(context: TracerWebClientContextApplier)
 }

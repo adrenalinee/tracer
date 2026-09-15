@@ -2,5 +2,5 @@ package malibu.tracer.webmvc
 
 interface TracerWebMvcConfigurer {
 
-    fun configureTracerWebMvc(context: TracerWebMvcContextApplyer)
+    fun configureTracerWebMvc(context: TracerWebMvcContextApplier)
 }

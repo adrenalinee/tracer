@@ -2,7 +2,7 @@ package malibu.tracer.webclient
 
 import org.springframework.web.reactive.function.client.ClientRequest
 
-class TracerWebClientContextApplyer(
+class TracerWebClientContextApplier(
     var traceRequestBody: Boolean? = null,
     var traceResponseBody: Boolean? = null,
     var traceRequestHeaders: Boolean? = null,
@@ -21,37 +21,37 @@ class TracerWebClientContextApplyer(
     /**
      * @param pathPattern - ant path pattern
      */
-    fun addExcludePathPatterns(pathPattern: String): TracerWebClientContextApplyer {
+    fun addExcludePathPatterns(pathPattern: String): TracerWebClientContextApplier {
         excludePathPatterns.add(pathPattern)
         addTracePredicate(TracerWebClientLoggingPredicates.excludePathPattern(pathPattern))
         return this
     }
 
-    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+    fun addTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplier {
         addRequestTracePredicate(predicate)
         addResponseTracePredicate(predicate)
         return this
     }
 
-    fun addTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+    fun addTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplier {
         return addTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+    fun addRequestTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplier {
         requestTracePredicates.add(predicate)
         return this
     }
 
-    fun addRequestTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+    fun addRequestTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplier {
         return addRequestTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 
-    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplyer {
+    fun addResponseTracePredicate(predicate: TraceHttpRequestPredicate): TracerWebClientContextApplier {
         responseTracePredicates.add(predicate)
         return this
     }
 
-    fun addResponseTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplyer {
+    fun addResponseTracePredicate(predicate: (ClientRequest) -> Boolean): TracerWebClientContextApplier {
         return addResponseTracePredicate(TraceHttpRequestPredicate(predicate))
     }
 

@@ -1,12 +1,13 @@
 plugins {
     id("java-library") //apply(false)
-//    id("maven-publish") //apply(false)
     `maven-publish`
 
     id("io.spring.dependency-management") version("1.1.7") //apply(false)
 
     kotlin("jvm") version("2.2.21") apply(false)
 }
+
+extra["springCloudGcpVersion"] = "8.0.1"
 
 tasks.named<Jar>("jar") {
     enabled = false
@@ -19,7 +20,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
 
     group = "malibu.tracer"
-    version = "15.0"
+    version = "16.0"
 
     java {
         toolchain {
@@ -44,11 +45,9 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.3")
-        }
-
-        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.5")
             mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.1")
+            mavenBom("com.google.cloud:spring-cloud-gcp-dependencies:${property("springCloudGcpVersion")}")
         }
     }
 
