@@ -10,6 +10,7 @@ import org.springframework.http.server.reactive.ServerHttpResponseDecorator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.nio.channels.Channels
+import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicBoolean
 
 class TracingServerHttpResponseDecorator(
@@ -61,7 +62,7 @@ class TracingServerHttpResponseDecorator(
             null
         } else {
             responseBodyBaos.toByteArray()
-                .toLimitedString(maxPayloadLength, truncated = responseBodyBaos.isTruncated())
+                .toLimitedString(maxPayloadLength, charset = currentCharset(), truncated = responseBodyBaos.isTruncated())
         }
     }
 
@@ -84,6 +85,10 @@ class TracingServerHttpResponseDecorator(
         } catch (ex: Exception) {
             logger.debug(ex) { "response body copy failed." }
         }
+    }
+
+    private fun currentCharset(): Charset {
+        return headers.contentType?.charset ?: Charsets.UTF_8
     }
 
     private fun notifyResponseWriteComplete() {
